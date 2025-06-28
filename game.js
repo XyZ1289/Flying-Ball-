@@ -380,8 +380,8 @@ function getCurrentRank(level) {
 // --- Phaser Scene Functions ---
 function preload() {
     // Load assets here
-    // Base64 encoded white circle for the ball (now a vibrant color)
-    this.load.image('ball', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABz51ERAAAAAXNSR0IArs4c6QAAAHdJREFUWAntVkEOwCAIg1P1/x+z/tKmlrY0jXlJjZqR8760jRzFfX+gXGuwX2ycBwo44AwYgP9gB9chPK+CqgJ/4AM/kJ9NAX4G3PMvHPEXgH4NszX95gP8asZXYO22F+2+L+g+x/9+1R9AA/w+1T8A93tU+GqJ1zIAAAAASUVORK5CYII='); // Changed to a vibrant blue circle
+    // Base64 encoded vibrant blue circle for the ball
+    this.load.image('ball', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABz51ERAAAAAXNSR0IArs4c6QAAAHdJREFUWAntVkEOwCAIg1P1/x+z/tKmlrY0jXlJjZqR8760jRzFfX+gXGuwX2ycBwo44AwYgP9gB9chPK+CqgJ/4AM/kJ9NAX4G3PMvHPEXgH4NszNf3mB/jVjK7B21y+B8Lp+g7+4g8gA/x+tT8AAAAASUVORK5CYII='); 
     
     // Simple pixel art for pipes (will make them glowing later in create)
     this.load.image('pipe', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAABCAYAAADuJ3oFAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAH0lEQVR4nGJgYGDYyMjIQAExMDJgYJgYGPQxAwBvHggD8+8aAAAAAElFTkSuQmCC'); // A simple horizontal line for pipe top/bottom
@@ -455,7 +455,7 @@ function update() {
                 scoreText.setText('Score: ' + pipesPassedInCurrentRun);
                 pipe.setData('scored', true); // Mark as scored
 
-                // Award XP for milestone pipes immediately
+                                // Award XP for milestone pipes immediately
                 const xpDetails = awardPipeXP(pipesPassedInCurrentRun);
                 if (xpDetails.xp > 0) {
                     // Display a temporary text indicating XP gain
@@ -466,7 +466,8 @@ function update() {
                         strokeThickness: 4
                     }).setOrigin(0.5);
                     this.tweens.add({
-                        targets: xpGainText,                        y: xpGainText.y - 70,
+                        targets: xpGainText,
+                        y: xpGainText.y - 70,
                         alpha: 0,
                         duration: 1500,
                         ease: 'Power1',
@@ -474,12 +475,14 @@ function update() {
                     });
                 }
             }
-            // Remove pipes that are off-screen to the left
-            if (pipe.x < -pipe.width) {
-                pipe.destroy();
-            }
-        }.bind(this)); // Bind 'this' context for pipes.children.each
-    } // <--- This closes the update function
+        }
+        // Remove pipes that are off-screen to the left
+        if (pipe.x < -pipe.width) {
+            pipe.destroy();
+        }
+    }.bind(this)); // Bind 'this' context for pipes.children.each
+} // <--- This is the closing brace for the update function
+
 // --- Game Logic Functions ---
 function addPipeRow() {
     if (isGameOver) return;
@@ -594,5 +597,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-                                                                             
-          
+                                    
