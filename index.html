@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Ball Game</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <div id="home-ad-banner" class="ad-container">
+        <p>HOME SCREEN AD</p>
+    </div>
+
+    <div id="in-game-ad-banner" class="ad-container">
+        <p>IN-GAME AD</p>
+    </div>
+
+    <div id="game-over-ad-display" class="ad-container">
+        <p>GAME OVER SCREEN AD</p>
+    </div>
+
+    <div id="home-screen" class="ui-screen active">
+        <h1>Flappy Ball</h1>
+        <button id="play-button">Play</button>
+        <button id="profile-button">Profile</button>
+    </div>
+
+    <div id="profile-screen" class="ui-screen">
+        <h2>Profile</h2>
+        <div class="profile-details">
+            <p>Player Name: <span id="player-name">Player 1</span></p>
+            <p>Rank: <span id="player-rank">Bronze</span></p>
+            <p>Level: <span id="player-level">1</span></p>
+            <div class="xp-bar-container">
+                <div class="xp-bar-fill" style="width: 0%;"></div>
+            </div>
+            <p class="xp-text"><span id="current-xp">0</span> / <span id="needed-xp">12</span> XP</p>
+            <p>Total Play Time: <span id="total-playtime">0 minutes</span></p>
+            <p>Total Pipes Crossed: <span id="total-pipes-crossed">0</span></p>
+            <h3>Milestones</h3>
+            <ul id="milestones-list">
+                </ul>
+        </div>
+        <button id="profile-back-button">Back to Home</button>
+    </div>
+
+    <div id="game-over-screen" class="ui-screen">
+        <h2>Game Over!</h2>
+        <p>Score: <span id="final-score">0</span></p>
+        <p>Time Played: <span id="game-over-playtime">0 minutes</span></p>
+        <p>Pipes Crossed: <span id="game-over-pipes">0</span></p>
+        <p class="xp-gained-message"><span id="xp-gained-info"></span></p>
+        <p class="level-up-message"><span id="level-up-info"></span></p>
+        <p class="rank-up-message"><span id="rank-up-info"></span></p>
+        <button id="play-again-button">Play Again</button>
+        <button id="game-over-home-button">Home</button>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
