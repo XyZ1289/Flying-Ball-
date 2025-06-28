@@ -8,7 +8,7 @@ const gameConfig = {
         default: 'arcade',
         arcade: {
             gravity: { y: 0 }, // No gravity initially, we'll control it
-            debug: false // Set to true to see physics bodies
+            debug: false // Set to true to see physics bodies (set to false for final game)
         }
     },
     scene: {
@@ -20,17 +20,17 @@ const gameConfig = {
 
 let game = new Phaser.Game(gameConfig);
 
-// --- Game Variables (will be used later) ---
+// --- Game Variables ---
 let playerBall;
 let pipes;
-let score = 0;
+let score = 0; // Pipes passed in current run
 let scoreText;
 let isGameOver = false;
 let gameTimer = 0; // In milliseconds
-let pipesPassedInCurrentRun = 0; // For milestone XP
+let pipesPassedInCurrentRun = 0;
 let milestonePipesAwardedThisRun = {}; // To track XP for specific pipes in current run
 
-// --- Player Data Storage (will be expanded) ---
+// --- Player Data Storage ---
 let playerData = {
     name: "Player 1",
     totalXP: 0,
@@ -38,21 +38,18 @@ let playerData = {
     totalPlaytimeSeconds: 0,
     totalPipesCrossed: 0,
     highestPipesInRun: 0,
-    achievedRanks: { // Keep track of achieved ranks (based on level)
-        'Bronze': true // Player starts at Level 1, so Bronze is achieved
-    }
-    // We will add more data like cumulative XP to reach each level later
+    achievedRanks: { 'Bronze': true } // Player starts at Level 1, so Bronze is achieved
 };
 
 // --- XP and Leveling Configuration ---
 const XP_GROWTH_FACTOR = 1.206;
-const BASE_XP_REQUIRED = 10; // XP from L1 to L2
+const BASE_XP_REQUIRED = 10; // Base XP from L1 to L2
 
-// Pre-calculate cumulative XP needed to reach each level (for XP bar display)
+// Pre-calculate cumulative XP needed to reach each level (for XP bar display and level up checks)
 const cumulativeXPRequiredToReachLevel = {};
 function calculateCumulativeXP() {
-    cumulativeXPRequiredToReachLevel[1] = 0;
-    for (let level = 1; level <= 1000; level++) { // Calculate far enough for "unlimited" levels
+    cumulativeXPRequiredToReachLevel[1] = 0; // XP needed to REACH Level 1 is 0
+    for (let level = 1; level <= 200; level++) { // Calculate up to level 200 for now, can extend if needed
         const xpNeededForNext = Math.round(BASE_XP_REQUIRED * Math.pow(XP_GROWTH_FACTOR, level));
         cumulativeXPRequiredToReachLevel[level + 1] = cumulativeXPRequiredToReachLevel[level] + xpNeededForNext;
     }
@@ -60,6 +57,7 @@ function calculateCumulativeXP() {
 calculateCumulativeXP(); // Call this once on script load
 
 function getXPRequiredForNextLevel(currentLevel) {
+    if (currentLevel >= 100) return Infinity; // For display past Level 100
     return Math.round(BASE_XP_REQUIRED * Math.pow(XP_GROWTH_FACTOR, currentLevel));
 }
 
@@ -78,7 +76,7 @@ const RANK_THRESHOLDS = {
 const homeScreen = document.getElementById('home-screen');
 const profileScreen = document.getElementById('profile-screen');
 const gameOverScreen = document.getElementById('game-over-screen');
-const gameContainer = document.getElementById('game-container'); // The Phaser canvas container
+const gameContainer = document.getElementById('game-container');
 
 const playButton = document.getElementById('play-button');
 const profileButton = document.getElementById('profile-button');
@@ -86,36 +84,33 @@ const profileBackButton = document.getElementById('profile-back-button');
 const playAgainButton = document.getElementById('play-again-button');
 const gameOverHomeButton = document.getElementById('game-over-home-button');
 
-// Ad containers (will be used later with AdSense code)
 const homeAdBanner = document.getElementById('home-ad-banner');
 const inGameAdBanner = document.getElementById('in-game-ad-banner');
 const gameOverAdDisplay = document.getElementById('game-over-ad-display');
 
 // --- Helper Functions for UI Management ---
 function showScreen(screenElement) {
-    const screens = [homeScreen, profileScreen, gameOverScreen, gameContainer];
+    const screens = [homeScreen, profileScreen, gameOverScreen]; // Exclude gameContainer from this array
     const adBanners = [homeAdBanner, inGameAdBanner, gameOverAdDisplay];
 
-    // Hide all UI screens and ads initially
+    // Hide all UI screens
     screens.forEach(s => s.classList.remove('active'));
+    // Hide all ad banners
     adBanners.forEach(a => a.style.display = 'none');
+    // Always hide game container initially when switching screens
+    gameContainer.style.display = 'none';
 
     // Activate the requested screen
     screenElement.classList.add('active');
 
-    // Show specific ads based on screen
-    if (screenElement === homeScreen) {
-        homeAdBanner.style.display = 'flex'; // Use flex for centering ad content
-        gameContainer.style.display = 'none'; // Ensure game canvas is hidden when on UI screen
-    } else if (screenElement === profileScreen) {
-        homeAdBanner.style.display = 'flex'; // Keep home ad visible on profile
-        gameContainer.style.display = 'none';
+    // Show specific ads and game container based on the screen
+    if (screenElement === homeScreen || screenElement === profileScreen) {
+        homeAdBanner.style.display = 'flex';
     } else if (screenElement === gameContainer) {
-        inGameAdBanner.style.display = 'flex';
         gameContainer.style.display = 'block'; // Show game canvas
+        inGameAdBanner.style.display = 'flex';
     } else if (screenElement === gameOverScreen) {
         gameOverAdDisplay.style.display = 'flex';
-        gameContainer.style.display = 'none'; // Hide game canvas
     }
 }
 
@@ -126,7 +121,7 @@ playButton.addEventListener('click', () => {
 
 profileButton.addEventListener('click', () => {
     loadPlayerData(); // Ensure latest data is loaded before updating UI
-    updateProfileUI(); // Function to populate profile details
+    updateProfileUI(); // Populate profile details
     showScreen(profileScreen);
 });
 
@@ -151,16 +146,21 @@ function loadPlayerData() {
     const savedData = localStorage.getItem('flappyBallPlayerData');
     if (savedData) {
         playerData = JSON.parse(savedData);
-        // Ensure new properties are added if loading old data
+        // Ensure new properties are added if loading old data from previous versions
         playerData.achievedRanks = playerData.achievedRanks || { 'Bronze': true };
+        playerData.totalXP = playerData.totalXP || 0;
+        playerData.currentLevel = playerData.currentLevel || 1;
+        playerData.totalPlaytimeSeconds = playerData.totalPlaytimeSeconds || 0;
+        playerData.totalPipesCrossed = playerData.totalPipesCrossed || 0;
+        playerData.highestPipesInRun = playerData.highestPipesInRun || 0;
     }
 }
 
 // --- Game State Functions ---
 function startGame() {
     // Reset game variables for new run
-    score = 0;
-    gameTimer = 0; // Milliseconds
+    score = 0; // Pipes passed in current game
+    gameTimer = 0; // Milliseconds played in current game
     pipesPassedInCurrentRun = 0;
     milestonePipesAwardedThisRun = {}; // Reset tracking for pipe XP
     isGameOver = false;
@@ -174,7 +174,7 @@ function startGame() {
 
 function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     isGameOver = true;
-
+    
     // Calculate XP from playtime
     const xpFromPlaytime = Math.floor(gameRunTimeSeconds / 60);
     playerData.totalXP += xpFromPlaytime;
@@ -187,20 +187,31 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     }
 
     let xpGainedMessages = [];
-    let totalXPGainedThisGame = xpFromPlaytime;
-
     if (xpFromPlaytime > 0) {
         xpGainedMessages.push(`${xpFromPlaytime} XP for ${Math.floor(gameRunTimeSeconds / 60)} minutes played`);
     } else {
         xpGainedMessages.push(`No XP from time played in this short run.`);
     }
 
-    // Display XP for pipes
-    const milestoneXPDetails = getXpForPipesMilestones(pipesCrossed); // Function to get details for display
-    if (milestoneXPDetails.xp > 0) {
-        xpGainedMessages.push(`${milestoneXPDetails.xp} XP for pipes (${milestoneXPDetails.message})`);
+    // Get total XP from pipes awarded during this run for display (awardPipeXP already added to totalXP)
+    let pipeXPAwardedThisRunForDisplay = 0;
+    for (const key in milestonePipesAwardedThisRun) {
+        if (milestonePipesAwardedThisRun[key]) {
+            // Sum up XP from thresholds met (using hardcoded values for simplicity here)
+            if (key === '10') pipeXPAwardedThisRunForDisplay += 10;
+            else if (key === '20') pipeXPAwardedThisRunForDisplay += 25;
+            else if (key === '50') pipeXPAwardedThisRunForDisplay += 75;
+            else if (key === '100') pipeXPAwardedThisRunForDisplay += 200;
+            else if (key === '200') pipeXPAwardedThisRunForDisplay += 500;
+            else if (key === '350') pipeXPAwardedThisRunForDisplay += 1000;
+            else if (key === '500') pipeXPAwardedThisRunForDisplay += 1500;
+        }
     }
 
+    if (pipeXPAwardedThisRunForDisplay > 0) {
+        xpGainedMessages.push(`${pipeXPAwardedThisRunForDisplay} XP from pipes crossed in this game!`);
+    }
+    
     // Update game over screen details
     document.getElementById('final-score').textContent = currentScore;
     document.getElementById('game-over-playtime').textContent = `${Math.floor(gameRunTimeSeconds / 60)} minutes ${gameRunTimeSeconds % 60} seconds`;
@@ -210,7 +221,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     // Check for Level Up and Rank Up
     let levelUpOccurred = false;
     let newRankAchieved = null;
-    while (playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) {
+    while (playerData.currentLevel < 100 && playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) { // Limit auto-level up check if beyond Level 100
         playerData.currentLevel++;
         levelUpOccurred = true;
         const rankForNewLevel = getCurrentRank(playerData.currentLevel);
@@ -219,6 +230,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
             newRankAchieved = rankForNewLevel;
         }
     }
+    // If currentLevel is >=100, XP still accumulates but display will show ∞ for XP needed.
 
     if (levelUpOccurred) {
         document.getElementById('level-up-info').textContent = `🎉 Congratulations! You reached Level ${playerData.currentLevel}!`;
@@ -233,67 +245,63 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     }
 
     savePlayerData(); // Save all updated player data
-
+    
     // Hide in-game ad, show game over ad
     inGameAdBanner.style.display = 'none';
     showScreen(gameOverScreen);
 }
 
-// --- XP & Level System Functions ---
+// --- XP & Level System Functions (continued) ---
 // This function runs during the game when a pipe is passed
 function awardPipeXP(pipesPassedCount) {
     let xpAwarded = 0;
     let message = [];
 
     // Note: The logic here awards XP if the specific pipe threshold hasn't been awarded YET in THIS run.
-    // It's checked in descending order so only the highest applicable award for a specific number is considered
-    // if we decide on non-additive. But user wants additive here. So just if not awarded.
-
-    if (pipesPassedCount >= 500 && !milestonePipesAwardedThisRun['500']) {
+    if (pipesPassedCount === 500 && !milestonePipesAwardedThisRun['500']) {
         xpAwarded = 1500;
         message.push('500 Pipes');
         milestonePipesAwardedThisRun['500'] = true;
-    } else if (pipesPassedCount >= 350 && !milestonePipesAwardedThisRun['350']) {
+    } else if (pipesPassedCount === 350 && !milestonePipesAwardedThisRun['350']) {
         xpAwarded = 1000;
         message.push('350 Pipes');
         milestonePipesAwardedThisRun['350'] = true;
-    } else if (pipesPassedCount >= 200 && !milestonePipesAwardedThisRun['200']) {
+    } else if (pipesPassedCount === 200 && !milestonePipesAwardedThisRun['200']) {
         xpAwarded = 500;
         message.push('200 Pipes');
         milestonePipesAwardedThisRun['200'] = true;
-    } else if (pipesPassedCount >= 100 && !milestonePipesAwardedThisRun['100']) {
+    } else if (pipesPassedCount === 100 && !milestonePipesAwardedThisRun['100']) {
         xpAwarded = 200;
         message.push('100 Pipes');
         milestonePipesAwardedThisRun['100'] = true;
-    } else if (pipesPassedCount >= 50 && !milestonePipesAwardedThisRun['50']) {
+    } else if (pipesPassedCount === 50 && !milestonePipesAwardedThisRun['50']) {
         xpAwarded = 75;
         message.push('50 Pipes');
         milestonePipesAwardedThisRun['50'] = true;
-    } else if (pipesPassedCount >= 20 && !milestonePipesAwardedThisRun['20']) {
+    } else if (pipesPassedCount === 20 && !milestonePipesAwardedThisRun['20']) {
         xpAwarded = 25;
         message.push('20 Pipes');
         milestonePipesAwardedThisRun['20'] = true;
-    } else if (pipesPassedCount >= 10 && !milestonePipesAwardedThisRun['10']) {
+    } else if (pipesPassedCount === 10 && !milestonePipesAwardedThisRun['10']) {
         xpAwarded = 10;
         message.push('10 Pipes');
         milestonePipesAwardedThisRun['10'] = true;
     }
-
+    
     if (xpAwarded > 0) {
         playerData.totalXP += xpAwarded;
-        // Potentially show a small in-game pop-up for XP gain
-        // console.log(`Awarded ${xpAwarded} XP for ${message.join(', ')} milestone! Total XP: ${playerData.totalXP}`);
         savePlayerData(); // Save immediately after awarding XP from pipes
         return { xp: xpAwarded, message: `+${xpAwarded} XP (${message.join(', ')})` };
     }
     return { xp: 0, message: '' };
 }
 
-// This function gets details for Game Over screen display
+// This function gets details for Game Over screen display (sum of all additive XP)
 function getXpForPipesMilestones(pipesPassedCount) {
     let xpTotalForDisplay = 0;
     let messageParts = [];
 
+    // These values must match the awardPipeXP amounts for display consistency
     if (pipesPassedCount >= 10) { xpTotalForDisplay += 10; messageParts.push('10+ pipes'); }
     if (pipesPassedCount >= 20) { xpTotalForDisplay += 25; messageParts.push('20+ pipes'); }
     if (pipesPassedCount >= 50) { xpTotalForDisplay += 75; messageParts.push('50+ pipes'); }
@@ -305,35 +313,44 @@ function getXpForPipesMilestones(pipesPassedCount) {
     return { xp: xpTotalForDisplay, message: messageParts.join(', ') };
 }
 
-
 function updateProfileUI() {
     document.getElementById('player-name').textContent = playerData.name;
     document.getElementById('player-rank').textContent = getCurrentRank(playerData.currentLevel);
     document.getElementById('player-level').textContent = playerData.currentLevel;
 
-    const currentXPInLevel = playerData.totalXP - cumulativeXPRequiredToReachLevel[playerData.currentLevel];
+    const totalXPReachedPreviousLevels = cumulativeXPRequiredToReachLevel[playerData.currentLevel] || 0;
+    const currentXPInLevel = playerData.totalXP - totalXPReachedPreviousLevels;
     const neededXPForNextLevel = getXPRequiredForNextLevel(playerData.currentLevel);
 
-    document.getElementById('current-xp').textContent = currentXPInLevel;
-
+    document.getElementById('current-xp').textContent = Math.floor(currentXPInLevel); // Use floor for display
+    
     // Handle XP display for Level 100+
-    if (playerData.currentLevel >= 100) {
+    if (playerData.currentLevel >= 100) { // Assuming 100 is effectively the "max" level for XP requirement scaling
         document.getElementById('needed-xp').textContent = '∞'; // Infinity symbol
     } else {
-        document.getElementById('needed-xp').textContent = neededXPForNextLevel;
+        document.getElementById('needed-xp').textContent = Math.round(neededXPForNextLevel); // Round for cleaner display
     }
 
     const xpBarFill = document.querySelector('.xp-bar-fill');
-    if (playerData.currentLevel >= 100 || neededXPForNextLevel === 0) { // If max level, or error
-        xpBarFill.style.width = '100%'; // Always full for max level
+    if (playerData.currentLevel >= 100 || neededXPForNextLevel <= 0) { // If max level, or no XP needed for next
+        xpBarFill.style.width = '100%'; // Always full for max level or when target is 0
     } else {
         const percentage = (currentXPInLevel / neededXPForNextLevel) * 100;
         xpBarFill.style.width = `${Math.min(percentage, 100)}%`; // Cap at 100%
     }
 
-    document.getElementById('total-playtime').textContent = `${Math.floor(playerData.totalPlaytimeSeconds / 60)} minutes`;
+    // Display total playtime in minutes (and optionally hours/minutes)
+    const totalMinutes = Math.floor(playerData.totalPlaytimeSeconds / 60);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    let playtimeString = `${totalMinutes} minutes`;
+    if (totalHours > 0) {
+        playtimeString = `${totalHours} hours ${remainingMinutes} minutes`;
+    }
+    document.getElementById('total-playtime').textContent = playtimeString;
     document.getElementById('total-pipes-crossed').textContent = playerData.totalPipesCrossed;
 
+    // Populate milestones/ranks
     const milestonesList = document.getElementById('milestones-list');
     milestonesList.innerHTML = ''; // Clear previous entries
 
@@ -363,9 +380,9 @@ function getCurrentRank(level) {
 // --- Phaser Scene Functions ---
 function preload() {
     // Load assets here
-    // Base64 encoded white circle for the ball
-    this.load.image('ball', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABz51ERAAAAAXNSR0IArs4c6QAAAHBJREFUWAntlkEOgCAMBMFp5xWk5zWcwf8mF1IqVlIpq/R91D0E0n77V6jXGvQW23cBA44wBzyB/3gH1yE8r4KqA1/gAT+Qn00Bfgbc8y8c8QfAfg2zNf3mB/jVjK7B21y+B8Lp+g7+4g8gA/x+tT8AAAAASUVORK5CYII=');
-
+    // Base64 encoded white circle for the ball (now a vibrant color)
+    this.load.image('ball', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABz51ERAAAAAXNSR0IArs4c6QAAAHdJREFUWAntVkEOwCAIg1P1/x+z/tKmlrY0jXlJjZqR8760jRzFfX+gXGuwX2ycBwo44AwYgP9gB9chPK+CqgJ/4AM/kJ9NAX4G3PMvHPEXgH4NszX95gP8asZXYO22F+2+L+g+x/9+1R9AA/w+1T8A93tU+GqJ1zIAAAAASUVORK5CYII='); // Changed to a vibrant blue circle
+    
     // Simple pixel art for pipes (will make them glowing later in create)
     this.load.image('pipe', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAABCAYAAADuJ3oFAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAH0lEQVR4nGJgYGDYyMjIQAExMDJgYJgYGPQxAwBvHggD8+8aAAAAAElFTkSuQmCC'); // A simple horizontal line for pipe top/bottom
 }
@@ -419,9 +436,6 @@ function create() {
     // --- Colliders ---
     this.physics.add.collider(playerBall, pipes, hitPipe, null, this);
     this.physics.add.collider(playerBall, this.physics.world.bounds.bottom, hitGround, null, this);
-
-    // --- Set current screen to game container ---
-    // This is handled by startGame() now, which is called by button click
 }
 
 function update() {
@@ -452,8 +466,7 @@ function update() {
                         strokeThickness: 4
                     }).setOrigin(0.5);
                     this.tweens.add({
-                        targets: xpGainText,
-                        y: xpGainText.y - 70,
+                        targets: xpGainText,                        y: xpGainText.y - 70,
                         alpha: 0,
                         duration: 1500,
                         ease: 'Power1',
@@ -461,14 +474,12 @@ function update() {
                     });
                 }
             }
-        }
-        // Remove pipes that are off-screen to the left
-        if (pipe.x < -pipe.width) {
-            pipe.destroy();
-        }
-    }.bind(this)); // Bind 'this' context for pipes.children.each
-}
-
+            // Remove pipes that are off-screen to the left
+            if (pipe.x < -pipe.width) {
+                pipe.destroy();
+            }
+        }.bind(this)); // Bind 'this' context for pipes.children.each
+    } // <--- This closes the update function
 // --- Game Logic Functions ---
 function addPipeRow() {
     if (isGameOver) return;
@@ -487,9 +498,9 @@ function addPipeRow() {
     const bottomPipeHeight = gameConfig.height - topPipeHeight - currentGap;
 
     // Top pipe
-    const topPipe = pipes.create(gameConfig.width + 50, topPipeHeight / 2, 'pipe'); // Position for top half
-      topPipe.setDisplaySize(50, topPipeHeight); // Width 50, height calculated
-    topPipe.setOrigin(0.5); // Center origin
+    const topPipe = pipes.create(gameConfig.width + 50, topPipeHeight / 2, 'pipe');
+    topPipe.setDisplaySize(50, topPipeHeight);
+    topPipe.setOrigin(0.5);
     topPipe.body.allowGravity = false;
     topPipe.setImmovable(true);
     topPipe.setVelocityX(currentPipeSpeed);
@@ -497,7 +508,7 @@ function addPipeRow() {
     topPipe.setData('isTopPipe', true); // Flag to identify top pipe of a pair
 
     // Bottom pipe
-    const bottomPipe = pipes.create(gameConfig.width + 50, gameConfig.height - (bottomPipeHeight / 2), 'pipe'); // Position for bottom half
+    const bottomPipe = pipes.create(gameConfig.width + 50, gameConfig.height - (bottomPipeHeight / 2), 'pipe');
     bottomPipe.setDisplaySize(50, bottomPipeHeight);
     bottomPipe.setOrigin(0.5);
     bottomPipe.body.allowGravity = false;
@@ -583,6 +594,5 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-        
-  
-   
+                                                                             
+          
