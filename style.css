@@ -14,11 +14,9 @@ body {
 /* Style for the game canvas container */
 #game-container {
     width: 100%;
-    height: 100vh; /* Adjust as needed for ad banners */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: absolute; /* Position over background */
+    /* Adjust height to make space for bottom ad banner */
+    height: calc(100vh - 70px); /* 70px for the bottom in-game ad */
+    position: absolute;
     top: 0;
     left: 0;
     z-index: 1; /* Below UI elements but above background */
@@ -46,9 +44,12 @@ canvas {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease-in-out;
-    padding: 20px;
+    padding: 0 20px; /* Horizontal padding */
     box-sizing: border-box; /* Include padding in element's total width and height */
     text-align: center;
+    /* Adjust top/bottom padding to make space for banners on Home/Profile */
+    padding-top: 70px; /* Space for top banner */
+    padding-bottom: 70px; /* Space for bottom banner */
 }
 
 .ui-screen.active {
@@ -91,6 +92,9 @@ button:hover {
     margin-bottom: 20px;
     width: 90%;
     max-width: 400px;
+    overflow-y: auto; /* Allow scrolling if content is too long */
+    flex-grow: 1; /* Allows it to take available space */
+    margin-top: 20px; /* Space after Profile H2 */
 }
 
 .profile-details p {
@@ -137,42 +141,47 @@ button:hover {
 
 /* Ad Container Styling */
 .ad-container {
-    position: absolute;
+    position: absolute; /* Default positioning for banners */
     width: 100%;
-    height: auto;
+    height: auto; /* Let AdSense determine height for responsive, or fixed for banners */
     background-color: rgba(0, 0, 0, 0.8);
-    display: flex;
+    display: flex; /* For centering ad content */
     justify-content: center;
     align-items: center;
-    z-index: 15; /* Above UI screens */
+    z-index: 15; /* Above UI screens, below main UI content like buttons/text */
     color: white;
     padding: 5px;
     box-sizing: border-box;
-    display: none; /* Hidden by default */
+    display: none; /* Hidden by default, shown by JS showScreen() */
+    overflow: hidden; /* Prevent ad content from spilling out */
 }
 
-#home-ad-banner {
-    bottom: 0;
-    height: 70px; /* Typical banner height */
-}
-
-#in-game-ad-banner {
+/* Specific positioning for top banners */
+.ad-banner-top {
     top: 0;
-    height: 70px; /* Typical banner height */
-    z-index: 5; /* Below UI screens, above game */
+    height: 70px; /* Consistent height for all top/bottom banners */
 }
 
-#game-over-ad-display {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+/* Specific positioning for bottom banners */
+.ad-banner-bottom {
+    bottom: 0;
+    height: 70px; /* Consistent height for all top/bottom banners */
+    z-index: 5; /* In-game ad needs to be below UI screens but above game */
+}
+
+/* Specific styling for the large game over display ad */
+.ad-display-middle {
+    position: relative; /* Relative to its parent div (game-over-screen) */
     width: 90%;
+    max-width: 320px; /* Common mobile ad width */
     height: auto;
-    max-height: 80%; /* Don't cover entire screen */
-    background-color: #333; /* Darker background for game over ad */
+    min-height: 250px; /* Minimum height for responsive */
+    background-color: #333; /* Darker background */
     z-index: 12; /* Above game, below game over screen content */
     border-radius: 10px;
     padding: 10px;
+    margin-top: 20px; /* Space above/below for clarity */
+    margin-bottom: 20px;
 }
 
 /* Specific elements for XP and Level up messages */
@@ -182,4 +191,3 @@ button:hover {
     color: #fff;
     font-weight: bold;
 }
-  
