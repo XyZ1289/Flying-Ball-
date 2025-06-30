@@ -3,32 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Ball Game</title>
+    <title>Bouncy Ball Game</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ADSENSE_CLIENT_ID" crossorigin="anonymous"></script>
 </head>
 <body>
     <div id="game-container"></div>
 
-    <div id="home-ad-banner" class="ad-container">
-        <p>HOME SCREEN AD</p>
-    </div>
-
-    <div id="in-game-ad-banner" class="ad-container">
-        <p>IN-GAME AD</p>
-    </div>
-
-    <div id="game-over-ad-display" class="ad-container">
-        <p>GAME OVER SCREEN AD</p>
-    </div>
-
     <div id="home-screen" class="ui-screen active">
-        <h1>Flappy Ball</h1>
+        <div id="home-top-ad-banner" class="ad-container ad-banner-top">
+            <p>HOME TOP AD</p>
+        </div>
+
+        <h1>Bouncy Ball</h1>
         <button id="play-button">Play</button>
         <button id="profile-button">Profile</button>
+
+        <div id="home-bottom-ad-banner" class="ad-container ad-banner-bottom">
+            <p>HOME BOTTOM AD</p>
+        </div>
     </div>
 
     <div id="profile-screen" class="ui-screen">
+        <div id="profile-top-ad-banner" class="ad-container ad-banner-top">
+            <p>PROFILE TOP AD</p>
+        </div>
+
         <h2>Profile</h2>
         <div class="profile-details">
             <p>Player Name: <span id="player-name">Player 1</span></p>
@@ -55,8 +56,17 @@
         <p class="xp-gained-message"><span id="xp-gained-info"></span></p>
         <p class="level-up-message"><span id="level-up-info"></span></p>
         <p class="rank-up-message"><span id="rank-up-info"></span></p>
+        
+        <div id="game-over-ad-display" class="ad-container ad-display-middle">
+            <p>GAME OVER AD</p>
+        </div>
+
         <button id="play-again-button">Play Again</button>
         <button id="game-over-home-button">Home</button>
+    </div>
+
+    <div id="in-game-bottom-ad-banner" class="ad-container ad-banner-bottom">
+        <p>IN-GAME BOTTOM AD</p>
     </div>
 
     <script src="game.js"></script>
