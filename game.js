@@ -94,14 +94,25 @@ const gameOverAdDisplay = document.getElementById('game-over-ad-display');
 
 // Function to push AdSense ads
 function pushAd(adElement) {
-    if (typeof (adsbygoogle) === 'undefined') return;
+    if (typeof (adsbygoogle) === 'undefined') {
+        console.warn("adsbygoogle not defined. AdSense script might not be loaded yet.");
+        return;
+    }
     try {
         // Clear existing ad content to prevent duplicates/issues
-        adElement.innerHTML = ''; 
-        const ins = adElement.querySelector('ins.adsbygoogle');
-        if (ins) {
-            (adsbygoogle = window.adsbygoogle || []).push({});
-        }
+        adElement.innerHTML = ''; // This clears the <ins> tag
+        // Recreate the <ins> tag with its original attributes
+        // This is a common pattern to force a refresh/reload of the ad unit
+        // NOTE: The AdSense code snippets usually contain the <ins> tag AND a push script.
+        // We ensure that the <ins> tag itself is present in HTML and then push it.
+        // For dynamic loading, it's safer to rely on AdSense's own mechanism.
+        // The original HTML now contains the ins tags, so we just need to push.
+
+        // It's assumed the <ins> tags are ALREADY in the HTML and we're just pushing them.
+        // The HTML comments in index.html indicate where the <ins> tags should be.
+        // We only need to push the ads that are actually visible.
+        (adsbygoogle = window.adsbygoogle || []).push({});
+        
     } catch (e) {
         console.error("Error pushing ad:", e);
     }
@@ -127,18 +138,27 @@ function showScreen(screenElement) {
     if (screenElement === homeScreen) {
         homeTopAdBanner.style.display = 'flex';
         homeBottomAdBanner.style.display = 'flex';
-        pushAd(homeTopAdBanner);
-        pushAd(homeBottomAdBanner);
+        // Give AdSense a moment to render the newly visible ad containers
+        setTimeout(() => {
+            pushAd(homeTopAdBanner);
+            pushAd(homeBottomAdBanner);
+        }, 100); // Small delay to ensure elements are rendered
     } else if (screenElement === profileScreen) {
         profileTopAdBanner.style.display = 'flex';
-        pushAd(profileTopAdBanner);
+        setTimeout(() => {
+            pushAd(profileTopAdBanner);
+        }, 100);
     } else if (screenElement === gameContainer) {
         gameContainer.style.display = 'block'; // Show game canvas
         inGameBottomAdBanner.style.display = 'flex';
-        pushAd(inGameBottomAdBanner);
+        setTimeout(() => {
+            pushAd(inGameBottomAdBanner);
+        }, 100);
     } else if (screenElement === gameOverScreen) {
         gameOverAdDisplay.style.display = 'flex';
-        pushAd(gameOverAdDisplay);
+        setTimeout(() => {
+            pushAd(gameOverAdDisplay);
+        }, 100);
     }
 }
 
@@ -515,33 +535,41 @@ function update() {
 function addPipeRow() {
     if (isGameOver) return;
 
-    const gap = 150; // Gap size between top and bottom pipe
-    const pipeSpeed = -150; // Speed pipes move left
+    let gap; // Declare gap here with let
+    let pipeSpeed; // Declare pipeSpeed here with let
+    let topPipeHeightValue; // Use Value suffix to avoid conflict with function variable
+    let bottomPipeHeightValue; // Use Value suffix
+
+    const defaultGap = 150; 
+    const defaultPipeSpeed = -150;
 
     // Initial difficulty (first 5 pipes)
     const easyPipesCount = 5;
     if (initialPipesSpawned < easyPipesCount) {
-        gap = 200; // Wider gap
+        gap = 200; // Wider gap for easy pipes
         const centerOffset = Phaser.Math.Between(-50, 50); // Keep near center
         const middlePipeY = gameConfig.height / 2 + centerOffset;
-        const topPipeHeightFixed = middlePipeY - (gap / 2);
-        const bottomPipeHeightFixed = gameConfig.height - middlePipeY - (gap / 2);
+        
+        let tempTopPipeHeight = middlePipeY - (gap / 2); 
+        let tempBottomPipeHeight = gameConfig.height - middlePipeY - (gap / 2);
 
-        // Ensure minimum height for pipes
         const minPipeSectionHeight = 50; // Minimum height for top or bottom pipe section
-        if (topPipeHeightFixed < minPipeSectionHeight || bottomPipeHeightFixed < minPipeSectionHeight) {
-            // Readjust if too small, effectively widening the gap a bit or nudging to valid range
-            // For simplicity, we just ensure it's not below min, could also recalculate middle
-            const adjustedTop = Math.max(topPipeHeightFixed, minPipeSectionHeight);
-            const adjustedBottom = Math.max(bottomPipeHeightFixed, minPipeSectionHeight);
-            
-            topPipeHeight = adjustedTop;
-            bottomPipeHeight = gameConfig.height - adjustedTop - gap; // Recalculate bottom based on adjusted top and fixed gap
-            if(bottomPipeHeight < minPipeSectionHeight) bottomPipeHeight = minPipeSectionHeight; // Ensure bottom is also min
-        } else {
-             topPipeHeight = topPipeHeightFixed;
-             bottomPipeHeight = bottomPipeHeightFixed;
+        
+        // Adjust if any section becomes too small due to fixed gap
+        if (tempTopPipeHeight < minPipeSectionHeight) tempTopPipeHeight = minPipeSectionHeight;
+        if (tempBottomPipeHeight < minPipeSectionHeight) tempBottomPipeHeight = minPipeSectionHeight;
+        
+        // Recalculate if heights were adjusted and now don't fit perfectly with original gap
+        if (tempTopPipeHeight + tempBottomPipeHeight + gap > gameConfig.height) {
+            // If the sum is too large, adjust the bottom pipe height
+            tempBottomPipeHeight = gameConfig.height - tempTopPipeHeight - gap;
+            if (tempBottomPipeHeight < minPipeSectionHeight) tempBottomPipeHeight = minPipeSectionHeight; // Ensure it still meets min
         }
+
+
+        topPipeHeightValue = tempTopPipeHeight;
+        bottomPipeHeightValue = tempBottomPipeHeight;
+        pipeSpeed = defaultPipeSpeed; // Use default speed for easy pipes
 
         initialPipesSpawned++;
     } else {
@@ -549,20 +577,17 @@ function addPipeRow() {
         const difficultyLevel = playerData.currentLevel;
         const maxLevelInfluence = 100; // After this level, difficulty caps
 
-        let dynamicGap = Math.max(gap - (difficultyLevel / maxLevelInfluence) * (gap * 0.7), 80); // Min gap 80
-        let dynamicPipeSpeed = pipeSpeed - (difficultyLevel / maxLevelInfluence) * (pipeSpeed * 0.5); // Max speed increase 50%
+        gap = Math.max(defaultGap - (difficultyLevel / maxLevelInfluence) * (defaultGap * 0.7), 80); // Min gap 80
+        pipeSpeed = defaultPipeSpeed - (difficultyLevel / maxLevelInfluence) * (defaultPipeSpeed * 0.5); // Max speed increase 50%
 
-        gap = dynamicGap;
-        pipeSpeed = dynamicPipeSpeed;
-
-        topPipeHeight = Phaser.Math.Between(50, gameConfig.height - 50 - gap);
-        bottomPipeHeight = gameConfig.height - topPipeHeight - gap;
+        topPipeHeightValue = Phaser.Math.Between(50, gameConfig.height - 50 - gap);
+        bottomPipeHeightValue = gameConfig.height - topPipeHeightValue - gap;
     }
 
 
     // Top pipe
-    const topPipe = pipes.create(gameConfig.width + 50, topPipeHeight / 2, 'pipe');
-    topPipe.setDisplaySize(50, topPipeHeight); // Width 50, height calculated
+    const topPipe = pipes.create(gameConfig.width + 50, topPipeHeightValue / 2, 'pipe');
+    topPipe.setDisplaySize(50, topPipeHeightValue); // Width 50, height calculated
     topPipe.setOrigin(0.5); // Center origin
     topPipe.body.allowGravity = false;
     topPipe.setImmovable(true);
@@ -571,8 +596,8 @@ function addPipeRow() {
     topPipe.setData('isTopPipe', true); // Flag to identify top pipe of a pair
 
     // Bottom pipe
-    const bottomPipe = pipes.create(gameConfig.width + 50, gameConfig.height - (bottomPipeHeight / 2), 'pipe');
-    bottomPipe.setDisplaySize(50, bottomPipeHeight);
+    const bottomPipe = pipes.create(gameConfig.width + 50, gameConfig.height - (bottomPipeHeightValue / 2), 'pipe');
+    bottomPipe.setDisplaySize(50, bottomPipeHeightValue);
     bottomPipe.setOrigin(0.5);
     bottomPipe.body.allowGravity = false;
     bottomPipe.setImmovable(true);
@@ -657,4 +682,3 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-                
