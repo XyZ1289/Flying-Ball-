@@ -697,4 +697,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-            
+                        
