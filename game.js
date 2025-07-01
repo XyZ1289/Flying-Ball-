@@ -85,80 +85,28 @@ const profileBackButton = document.getElementById('profile-back-button');
 const playAgainButton = document.getElementById('play-again-button');
 const gameOverHomeButton = document.getElementById('game-over-home-button');
 
-const homeTopAdBanner = document.getElementById('home-top-ad-banner');
-const homeBottomAdBanner = document.getElementById('home-bottom-ad-banner');
-const profileTopAdBanner = document.getElementById('profile-top-ad-banner');
-const inGameBottomAdBanner = document.getElementById('in-game-bottom-ad-banner');
-const gameOverAdDisplay = document.getElementById('game-over-ad-display');
+// Direct Link Button references
+const rewardButton = document.getElementById('reward-button'); // On Home Screen
+const gameOverRewardButton = document.getElementById('game-over-reward-button'); // On Game Over Screen
 
-
-// Function to push AdSense ads
-function pushAd(adElement) {
-    if (typeof (adsbygoogle) === 'undefined') {
-        console.warn("adsbygoogle not defined. AdSense script might not be loaded yet.");
-        return;
-    }
-    try {
-        // Clear existing ad content to prevent duplicates/issues
-        adElement.innerHTML = ''; // This clears the <ins> tag
-        // Recreate the <ins> tag with its original attributes
-        // This is a common pattern to force a refresh/reload of the ad unit
-        // NOTE: The AdSense code snippets usually contain the <ins> tag AND a push script.
-        // We ensure that the <ins> tag itself is present in HTML and then push it.
-        // For dynamic loading, it's safer to rely on AdSense's own mechanism.
-        // The original HTML now contains the ins tags, so we just need to push.
-
-        // It's assumed the <ins> tags are ALREADY in the HTML and we're just pushing them.
-        // The HTML comments in index.html indicate where the <ins> tags should be.
-        // We only need to push the ads that are actually visible.
-        (adsbygoogle = window.adsbygoogle || []).push({});
-        
-    } catch (e) {
-        console.error("Error pushing ad:", e);
-    }
-}
-
+// --- Monetag Direct Link URL ---
+const MONETAG_DIRECT_LINK = "https://otieu.com/4/9512729"; // Your copied Direct Link
 
 // --- Helper Functions for UI Management ---
 function showScreen(screenElement) {
     const screens = [homeScreen, profileScreen, gameOverScreen];
-    const adBanners = [homeTopAdBanner, homeBottomAdBanner, profileTopAdBanner, inGameBottomAdBanner, gameOverAdDisplay];
 
     // Hide all UI screens
     screens.forEach(s => s.classList.remove('active'));
-    // Hide all ad banners
-    adBanners.forEach(a => a.style.display = 'none');
-    // Always hide game container initially when switching screens
+    // Always hide game container when switching to UI screens
     gameContainer.style.display = 'none';
 
     // Activate the requested screen
     screenElement.classList.add('active');
 
-    // Show specific ads and game container based on the screen
-    if (screenElement === homeScreen) {
-        homeTopAdBanner.style.display = 'flex';
-        homeBottomAdBanner.style.display = 'flex';
-        // Give AdSense a moment to render the newly visible ad containers
-        setTimeout(() => {
-            pushAd(homeTopAdBanner);
-            pushAd(homeBottomAdBanner);
-        }, 100); // Small delay to ensure elements are rendered
-    } else if (screenElement === profileScreen) {
-        profileTopAdBanner.style.display = 'flex';
-        setTimeout(() => {
-            pushAd(profileTopAdBanner);
-        }, 100);
-    } else if (screenElement === gameContainer) {
+    // Show game container only when game is active
+    if (screenElement === gameContainer) {
         gameContainer.style.display = 'block'; // Show game canvas
-        inGameBottomAdBanner.style.display = 'flex';
-        setTimeout(() => {
-            pushAd(inGameBottomAdBanner);
-        }, 100);
-    } else if (screenElement === gameOverScreen) {
-        gameOverAdDisplay.style.display = 'flex';
-        setTimeout(() => {
-            pushAd(gameOverAdDisplay);
-        }, 100);
     }
 }
 
@@ -184,6 +132,57 @@ playAgainButton.addEventListener('click', () => {
 gameOverHomeButton.addEventListener('click', () => {
     showScreen(homeScreen);
 });
+
+// Event listeners for the Direct Link buttons
+if (rewardButton) { // Check if the button exists
+    rewardButton.addEventListener('click', () => {
+        window.open(MONETAG_DIRECT_LINK, '_blank'); // Open ad in new tab
+    });
+}
+
+if (gameOverRewardButton) { // Check if the button exists
+    gameOverRewardButton.addEventListener('click', () => {
+        window.open(MONETAG_DIRECT_LINK, '_blank'); // Open ad in new tab
+        
+        // Award 2X XP from the LAST game score on this click
+        // This is a direct reward, as verification of ad watch is not possible.
+        const lastGameTimeSeconds = Math.floor(gameTimer / 1000);
+        const xpFromTime = lastGameTimeSeconds * 0.1; // 0.1 XP per second
+        const xpFromRegularPipes = pipesPassedInCurrentRun * 0.5; // 0.5 XP per pipe
+
+        const lastGameMilestoneXP = getXpForPipesMilestones(pipesPassedInCurrentRun).xp; // Total milestone XP for that run
+
+        const baseXPThisGame = xpFromTime + xpFromRegularPipes + lastGameMilestoneXP;
+        const bonusXP = baseXPThisGame; // This makes it 2X total XP for the game if claimed
+
+        playerData.totalXP += bonusXP; // Add the bonus XP
+        savePlayerData();
+        
+        // Update the Game Over screen dynamically to show new XP
+        document.getElementById('xp-gained-info').innerHTML += `<br>+${Math.floor(bonusXP)} BONUS XP (2X)!`;
+        
+        // Also update the level/rank info if it caused a level up
+        let levelUpOccurred = false;
+        let newRankAchieved = null;
+        while (playerData.currentLevel < 100 && playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) {
+            playerData.currentLevel++;
+            levelUpOccurred = true;
+            const rankForNewLevel = getCurrentRank(playerData.currentLevel);
+            if (!playerData.achievedRanks[rankForNewLevel]) {
+                playerData.achievedRanks[rankForNewLevel] = true;
+                newRankAchieved = rankForNewLevel;
+            }
+        }
+        if (levelUpOccurred) {
+            document.getElementById('level-up-info').textContent = `🎉 Congratulations! You reached Level ${playerData.currentLevel}!`;
+        }
+        if (newRankAchieved) {
+            document.getElementById('rank-up-info').textContent = `🏅 You are now a ${newRankAchieved}!`;
+        }
+        gameOverRewardButton.style.display = 'none'; // Hide button after claiming reward
+    });
+}
+
 
 // --- Player Data Management (Local Storage) ---
 function savePlayerData() {
@@ -217,7 +216,7 @@ function startGame() {
     // Start (or restart) the Phaser scene
     game.scene.getScene('default').scene.restart();
 
-    // Show the game container and in-game ad
+    // Show the game container
     showScreen(gameContainer);
 }
 
@@ -225,8 +224,11 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     isGameOver = true;
     
     // Calculate XP from playtime
-    const xpFromPlaytime = Math.floor(gameRunTimeSeconds / 60);
+    const xpFromPlaytime = gameRunTimeSeconds * 0.1; // 0.1 XP per second
+    const xpFromRegularPipes = pipesCrossed * 0.5; // 0.5 XP per pipe
+
     playerData.totalXP += xpFromPlaytime;
+    playerData.totalXP += xpFromRegularPipes; // Add XP from regular pipes
 
     // Update total stats
     playerData.totalPlaytimeSeconds += gameRunTimeSeconds;
@@ -237,16 +239,16 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
 
     let xpGainedMessages = [];
     if (xpFromPlaytime > 0) {
-        xpGainedMessages.push(`${xpFromPlaytime} XP for ${Math.floor(gameRunTimeSeconds / 60)} minutes played`);
-    } else {
-        xpGainedMessages.push(`No XP from time played in this short run.`);
+        xpGainedMessages.push(`${xpFromPlaytime.toFixed(1)} XP for ${Math.floor(gameRunTimeSeconds / 60)} minutes ${gameRunTimeSeconds % 60} seconds played`);
+    }
+    if (xpFromRegularPipes > 0) {
+        xpGainedMessages.push(`${xpFromRegularPipes.toFixed(1)} XP for ${pipesCrossed} pipes crossed`);
     }
 
-    // Get total XP from pipes awarded during this run for display (awardPipeXP already added to totalXP)
+    // Get total XP from milestone pipes awarded during this run for display (awardPipeXP already added to totalXP)
     let pipeXPAwardedThisRunForDisplay = 0;
     for (const key in milestonePipesAwardedThisRun) {
         if (milestonePipesAwardedThisRun[key]) {
-            // Sum up XP from thresholds met (using hardcoded values for simplicity here)
             if (key === '10') pipeXPAwardedThisRunForDisplay += 10;
             else if (key === '20') pipeXPAwardedThisRunForDisplay += 25;
             else if (key === '50') pipeXPAwardedThisRunForDisplay += 75;
@@ -258,14 +260,14 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     }
 
     if (pipeXPAwardedThisRunForDisplay > 0) {
-        xpGainedMessages.push(`${pipeXPAwardedThisRunForDisplay} XP from pipes crossed in this game!`);
+        xpGainedMessages.push(`${pipeXPAwardedThisRunForDisplay} XP from milestone pipes!`);
     }
     
     // Update game over screen details
     document.getElementById('final-score').textContent = currentScore;
     document.getElementById('game-over-playtime').textContent = `${Math.floor(gameRunTimeSeconds / 60)} minutes ${gameRunTimeSeconds % 60} seconds`;
     document.getElementById('game-over-pipes').textContent = pipesCrossed;
-    document.getElementById('xp-gained-info').innerHTML = xpGainedMessages.join('<br>'); // Use <br> for new lines
+    document.getElementById('xp-gained-info').innerHTML = xpGainedMessages.length > 0 ? xpGainedMessages.join('<br>') : "No XP earned in this run.";
 
     // Check for Level Up and Rank Up
     let levelUpOccurred = false;
@@ -295,8 +297,12 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
 
     savePlayerData(); // Save all updated player data
     
-    // Show game over ad
+    // Show game over screen
     showScreen(gameOverScreen);
+    // Ensure the reward button is visible for the next game over
+    if (gameOverRewardButton) {
+        gameOverRewardButton.style.display = 'block'; 
+    }
 }
 
 // --- XP & Level System Functions (continued) ---
@@ -427,12 +433,7 @@ function getCurrentRank(level) {
 
 // --- Phaser Scene Functions ---
 function preload() {
-    // Load assets here
-    // Base64 encoded vibrant blue circle for the ball (round and clear)
-    this.load.image('ball', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABz51ERAAAAAXNSR0IArs4c6QAAAHdJREFUWAntVkEOwCAIg1P1/x+z/tKmlrY0jXlJjZqR8760jRzFfX+gXGuwX2ycBwo44AwYgP9gB9chPK+CqgJ/4AM/kJ9NAX4G3PMvHPEXgH4NszNf3mB/jVjK7B21y+B8Lp+g7+4g8gA/x+tT8AAAAASUVORK5CYII='); 
-    
-    // Base64 encoded solid green pipe image (will be tinted for glow/milestone colors)
-    this.load.image('pipe', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAxCAYAAACTg2LqAAAAAXNSR0IArs4c6QAAAHBJREFUWAntmO0JgCAQg1u8/2/qQ8+gD0N04eQ1W4R7n9L2Fq7t1625tHn8kC1oD3Bq5fO/F08CugxYgAFsABuA/4kH/vP7J/a/r1c784M/dD/Z/gXoAbYBdgAfgAvADpAHGfP3A3wAbACbAGP/vQdwAfABvgAXAO3gDvgAvADPgO0AP/R/7Fv6x72rA14GzAP2AX8A1gFvYAbYAPYA24B9wB8A+wA/gH2AfYD/gAb4v95wAP8A9gALAG8AXAD7AGwAegAfAP0DAPgG3gP/AO4A8wAPgLwG0f3+8AAAAASUVORK5CYII=');
+    // No image loading here anymore for ball and pipes, they are drawn with graphics.
 }
 
 function create() {
@@ -451,17 +452,25 @@ function create() {
     graphics.fillStyle(0xF0F0F0, 0.7); // Light gray moon, 70% opacity
     graphics.fillCircle(gameConfig.width - 50, 50, 20); // Top right corner
 
-    // --- Player Ball ---
-    playerBall = this.physics.add.image(gameConfig.width / 2, gameConfig.height / 2, 'ball');
-    playerBall.setCircle();
-    playerBall.setScale(1.5); // Slightly larger ball
-    playerBall.setCollideWorldBounds(true);
+    // --- Player Ball (Drawn with Graphics) ---
+    // Create a graphics object specifically for the player ball
+    playerBall = this.add.graphics({ fillStyle: { color: 0x00BFFF } }); // Vibrant blue color
+    playerBall.fillCircle(0, 0, 15); // Draw a circle with radius 15 (fits scale of 1.5)
+    // Add physics to the graphics object
+    this.physics.add.existing(playerBall);
+    
+    // Set initial position and properties
+    playerBall.x = gameConfig.width / 2;
+    playerBall.y = gameConfig.height / 2;
+    playerBall.body.setCircle(15); // Set physics body as a circle with radius 15
+    playerBall.body.setCollideWorldBounds(true);
     playerBall.body.setGravityY(700); // Increased gravity for classic Flappy feel
 
     // Input handling
+
     this.input.on('pointerdown', () => {
         if (!isGameOver) {
-            playerBall.setVelocityY(-350); // Make it jump
+            playerBall.body.setVelocityY(-350); // Make it jump
         }
     });
 
@@ -475,7 +484,7 @@ function create() {
     // --- Pipes ---
     pipes = this.physics.add.group();
     this.time.addEvent({
-        delay: 1700, // Time between pipe spawns
+        delay: 2000, // Increased time between pipe spawns for more adjustment time
         callback: addPipeRow,
         callbackScope: this,
         loop: true
@@ -496,9 +505,9 @@ function update() {
 
     // Check if pipes have passed the player and award score/XP
     pipes.children.each(function(pipe) {
-        if (pipe.x < playerBall.x && !pipe.getData('scored')) {
-            // Ensure only one pipe (top or bottom) triggers the score and XP
-            if (pipe.getData('isTopPipe')) { // Only check for top pipe to avoid double count
+        // Only trigger score/XP if it's a graphical pipe, not the text
+        if (pipe.type === 'Graphics' && pipe.x < playerBall.x && !pipe.getData('scored')) {
+            if (pipe.getData('isTopPipe')) { // Only check for top pipe of the pair
                 pipesPassedInCurrentRun++;
                 scoreText.setText('Score: ' + pipesPassedInCurrentRun);
                 pipe.setData('scored', true); // Mark as scored
@@ -524,8 +533,8 @@ function update() {
                 }
             }
         }
-        // Remove pipes that are off-screen to the left
-        if (pipe.x < -pipe.width) {
+        // Remove pipes (and their associated text) that are off-screen to the left
+        if (pipe.x < -100) { // Check slightly further off-screen to ensure text is gone too
             pipe.destroy();
         }
     }.bind(this)); // Bind 'this' context for pipes.children.each
@@ -535,80 +544,79 @@ function update() {
 function addPipeRow() {
     if (isGameOver) return;
 
-    let gap; // Declare gap here with let
-    let pipeSpeed; // Declare pipeSpeed here with let
-    let topPipeHeightValue; // Use Value suffix to avoid conflict with function variable
-    let bottomPipeHeightValue; // Use Value suffix
+    let pipeGap = 150; // Default gap
+    let pipeHorizontalSpeed = -150; // Default speed
+    let pipeVerticalPosition; // Y position of the gap center
+    let topPipeHeight; 
+    let bottomPipeHeight;
 
-    const defaultGap = 150; 
-    const defaultPipeSpeed = -150;
+    const defaultMinPipeSectionHeight = 50; // Minimum visual height for a pipe section
 
     // Initial difficulty (first 5 pipes)
     const easyPipesCount = 5;
     if (initialPipesSpawned < easyPipesCount) {
-        gap = 200; // Wider gap for easy pipes
-        const centerOffset = Phaser.Math.Between(-50, 50); // Keep near center
-        const middlePipeY = gameConfig.height / 2 + centerOffset;
+        pipeGap = 200; // Wider gap for initial ease
+        pipeHorizontalSpeed = -100; // Slower speed
         
-        let tempTopPipeHeight = middlePipeY - (gap / 2); 
-        let tempBottomPipeHeight = gameConfig.height - middlePipeY - (gap / 2);
-
-        const minPipeSectionHeight = 50; // Minimum height for top or bottom pipe section
-        
-        // Adjust if any section becomes too small due to fixed gap
-        if (tempTopPipeHeight < minPipeSectionHeight) tempTopPipeHeight = minPipeSectionHeight;
-        if (tempBottomPipeHeight < minPipeSectionHeight) tempBottomPipeHeight = minPipeSectionHeight;
-        
-        // Recalculate if heights were adjusted and now don't fit perfectly with original gap
-        if (tempTopPipeHeight + tempBottomPipeHeight + gap > gameConfig.height) {
-            // If the sum is too large, adjust the bottom pipe height
-            tempBottomPipeHeight = gameConfig.height - tempTopPipeHeight - gap;
-            if (tempBottomPipeHeight < minPipeSectionHeight) tempBottomPipeHeight = minPipeSectionHeight; // Ensure it still meets min
-        }
-
-
-        topPipeHeightValue = tempTopPipeHeight;
-        bottomPipeHeightValue = tempBottomPipeHeight;
-        pipeSpeed = defaultPipeSpeed; // Use default speed for easy pipes
-
+        // Keep initial pipes near center
+        pipeVerticalPosition = gameConfig.height / 2 + Phaser.Math.Between(-30, 30); 
         initialPipesSpawned++;
     } else {
-        // Normal difficulty scaling after initial easy pipes
+        // Difficulty scaling after initial easy pipes
         const difficultyLevel = playerData.currentLevel;
-        const maxLevelInfluence = 100; // After this level, difficulty caps
+        // Max influence increased for gentler curve
+        const maxLevelInfluence = 500; 
 
-        gap = Math.max(defaultGap - (difficultyLevel / maxLevelInfluence) * (defaultGap * 0.7), 80); // Min gap 80
-        pipeSpeed = defaultPipeSpeed - (difficultyLevel / maxLevelInfluence) * (defaultPipeSpeed * 0.5); // Max speed increase 50%
+        pipeGap = Math.max(defaultGap - (difficultyLevel / maxLevelInfluence) * (defaultGap * 0.7), 80); // Min gap 80
+        pipeHorizontalSpeed = Math.min(defaultPipeSpeed - (difficultyLevel / maxLevelInfluence) * (defaultPipeSpeed * 0.5), -300); // Max speed -300
 
-        topPipeHeightValue = Phaser.Math.Between(50, gameConfig.height - 50 - gap);
-        bottomPipeHeightValue = gameConfig.height - topPipeHeightValue - gap;
+        pipeVerticalPosition = Phaser.Math.Between(defaultMinPipeSectionHeight + (pipeGap / 2), gameConfig.height - defaultMinPipeSectionHeight - (pipeGap / 2));
     }
 
+    topPipeHeight = pipeVerticalPosition - (pipeGap / 2);
+    bottomPipeHeight = gameConfig.height - (pipeVerticalPosition + (pipeGap / 2));
 
-    // Top pipe
-    const topPipe = pipes.create(gameConfig.width + 50, topPipeHeightValue / 2, 'pipe');
-    topPipe.setDisplaySize(50, topPipeHeightValue); // Width 50, height calculated
-    topPipe.setOrigin(0.5); // Center origin
-    topPipe.body.allowGravity = false;
-    topPipe.setImmovable(true);
-    topPipe.setVelocityX(pipeSpeed); // Use adjusted pipeSpeed
-    topPipe.setData('scored', false); // Flag to check if this pipe pair has given score
-    topPipe.setData('isTopPipe', true); // Flag to identify top pipe of a pair
+    // Ensure calculated heights meet minimum visual requirements
+    if (topPipeHeight < defaultMinPipeSectionHeight) topPipeHeight = defaultMinPipeSectionHeight;
+    if (bottomPipeHeight < defaultMinPipeSectionHeight) bottomPipeHeight = defaultMinPipeSectionHeight;
 
-    // Bottom pipe
-    const bottomPipe = pipes.create(gameConfig.width + 50, gameConfig.height - (bottomPipeHeightValue / 2), 'pipe');
-    bottomPipe.setDisplaySize(50, bottomPipeHeightValue);
-    bottomPipe.setOrigin(0.5);
-    bottomPipe.body.allowGravity = false;
-    bottomPipe.setImmovable(true);
-    bottomPipe.setVelocityX(pipeSpeed); // Use adjusted pipeSpeed
-    bottomPipe.setData('scored', false);
-    bottomPipe.setData('isTopPipe', false);
+    // --- Pipe Graphics ---
+    const pipeWidth = 50;
+    const pipeX = gameConfig.width + 50; // Start off-screen
+
+    // Top Pipe
+    const topPipeGraphic = this.add.graphics({ fillStyle: { color: 0x00FF00 } }); // Default glowing green
+    topPipeGraphic.fillRect(0, 0, pipeWidth, topPipeHeight); // Draw filled rectangle
+    this.physics.add.existing(topPipeGraphic, true); // Add physics, static body
+    topPipeGraphic.body.setSize(pipeWidth, topPipeHeight); // Set physics body size
+    topPipeGraphic.x = pipeX;
+    topPipeGraphic.y = topPipeHeight / 2; // Position center of graphic for visual rendering
+    topPipeGraphic.body.setImmovable(true);
+    topPipeGraphic.body.setVelocityX(pipeHorizontalSpeed);
+    topPipeGraphic.setData('scored', false);
+    topPipeGraphic.setData('isTopPipe', true);
+
+    // Bottom Pipe
+    const bottomPipeGraphic = this.add.graphics({ fillStyle: { color: 0x00FF00 } }); // Default glowing green
+    bottomPipeGraphic.fillRect(0, 0, pipeWidth, bottomPipeHeight); // Draw filled rectangle
+    this.physics.add.existing(bottomPipeGraphic, true); // Add physics, static body
+    bottomPipeGraphic.body.setSize(pipeWidth, bottomPipeHeight); // Set physics body size
+    bottomPipeGraphic.x = pipeX;
+    bottomPipeGraphic.y = gameConfig.height - (bottomPipeHeight / 2); // Position center of graphic for visual rendering
+    bottomPipeGraphic.body.setImmovable(true);
+    bottomPipeGraphic.body.setVelocityX(pipeHorizontalSpeed);
+    bottomPipeGraphic.setData('scored', false);
+    bottomPipeGraphic.setData('isTopPipe', false);
+
+    // Add graphics objects to the pipes group
+    pipes.add(topPipeGraphic);
+    pipes.add(bottomPipeGraphic);
+
 
     // Apply glowing effect and check for milestone pipes
     const currentPipeCount = pipesPassedInCurrentRun + 1; // This will be the score if this pipe is passed
 
-    let pipeColor = 0x00FF00; // Default glowing green
+    let pipeColor = 0x00FF00; // Default glowing green for normal pipes
     let textColor = 0x000000; // Black text for numbers on pipes
     let displayNumber = '';
 
@@ -642,27 +650,34 @@ function addPipeRow() {
         textColor = 0x000000;
     }
 
-    topPipe.setTint(pipeColor);
-    bottomPipe.setTint(pipeColor);
+    // Redraw the graphics with the correct color
+    topPipeGraphic.clear();
+    topPipeGraphic.fillStyle(pipeColor);
+    topPipeGraphic.fillRect(0, 0, pipeWidth, topPipeHeight); 
+
+    bottomPipeGraphic.clear();
+    bottomPipeGraphic.fillStyle(pipeColor);
+    bottomPipeGraphic.fillRect(0, 0, pipeWidth, bottomPipeHeight); 
+
 
     // Add text to milestone pipes
     if (displayNumber !== '') {
-        const pipeTextTop = this.add.text(topPipe.x, topPipe.y, displayNumber, {
+        const pipeTextTop = this.add.text(topPipeGraphic.x, topPipeGraphic.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(11);
-        const pipeTextBottom = this.add.text(bottomPipe.x, bottomPipe.y, displayNumber, {
+        const pipeTextBottom = this.add.text(bottomPipeGraphic.x, bottomPipeGraphic.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(11);
 
         // Make the text move with the pipes
-        pipeTextTop.setVelocityX(pipeSpeed);
-        pipeTextBottom.setVelocityX(pipeSpeed);
+        pipeTextTop.setVelocityX(pipeHorizontalSpeed);
+        pipeTextBottom.setVelocityX(pipeHorizontalSpeed);
 
-        // Add text to pipes group so they are managed together
+        // Add text to pipes group so they are managed together (though they are not physics bodies)
         pipes.add(pipeTextTop);
         pipes.add(pipeTextBottom);
     }
@@ -670,7 +685,8 @@ function addPipeRow() {
 
 
 function hitPipe(player, pipe) {
-    if (isGameOver) return;
+    // Only trigger game over if the hit object is a graphics pipe, not text
+    if (isGameOver || pipe.type !== 'Graphics') return; 
     endGame(pipesPassedInCurrentRun, Math.floor(gameTimer / 1000), pipesPassedInCurrentRun); // Pass score, time, pipes crossed
 }
 
