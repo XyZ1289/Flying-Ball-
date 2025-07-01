@@ -137,6 +137,12 @@ gameOverHomeButton.addEventListener('click', () => {
 if (rewardButton) { // Check if the button exists
     rewardButton.addEventListener('click', () => {
         window.open(MONETAG_DIRECT_LINK, '_blank'); // Open ad in new tab
+        // Give random XP on click for "Get Random XP!" button
+        const randomXP = Phaser.Math.Between(1, 50);
+        playerData.totalXP += randomXP;
+        savePlayerData();
+        // Optionally, show a small temporary message on screen
+        // this.add.text(gameConfig.width / 2, gameConfig.height / 2, `+${randomXP} XP!`, { fontSize: '32px', fill: '#0f0' }).setOrigin(0.5);
     });
 }
 
@@ -255,7 +261,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
             else if (key === '100') pipeXPAwardedThisRunForDisplay += 200;
             else if (key === '200') pipeXPAwardedThisRunForDisplay += 500;
             else if (key === '350') pipeXPAwardedThisRunForDisplay += 1000;
-            else if (key === '500') pipeXPAwardedThisRunForDisplay += 1500;
+            else if (key === '500') xpXPAwardedThisRunForDisplay += 1500;
         }
     }
 
@@ -454,14 +460,6 @@ function create() {
 
     // --- Player Ball (Drawn with Graphics) ---
     // Create a graphics object specifically for the player ball
-    playerBall = this.add.graphics({ fillStyle: { color: 0x00BFFF } }); // Vibrant blue color
-    playerBall.fillCircle(0, 0, 15); // Draw a circle with radius 15 (fits scale of 1.5)
-    // Add physics to the graphics object
-    this.physics.add.existing(playerBall);
-    
-    // Set initial position and properties
-    playerBall.x = gameConfig.width / 2;
-    playerBall.y = gameConfig.height / 2;
         playerBall.body.setCircle(15); // Set physics body as a circle with radius 15
     playerBall.body.setCollideWorldBounds(true);
     playerBall.body.setGravityY(700); // Increased gravity for classic Flappy feel
@@ -652,7 +650,7 @@ function addPipeRow() {
     // Redraw the graphics with the correct color
     topPipeGraphic.clear();
     topPipeGraphic.fillStyle(pipeColor);
-    topPipeGraphic.fillRect(0, 0, pipeWidth, topPipeHeight); 
+    topPipeGraphic.fillRect(0, 0, pipeWidth, pipeHeight); 
 
     bottomPipeGraphic.clear();
     bottomPipeGraphic.fillStyle(pipeColor);
@@ -697,4 +695,3 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-                        
