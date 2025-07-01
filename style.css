@@ -4,33 +4,41 @@ body {
     font-family: Arial, sans-serif;
     color: #eee; /* Light text for dark background */
     background-color: #000; /* Black background */
+    
+    /* Centering on larger screens */
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-direction: column; /* Stack children vertically */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
     min-height: 100vh; /* Full viewport height */
-    position: relative; /* For absolute positioning of UI elements */
+    position: relative; /* For absolute positioning of UI elements relative to body */
 }
 
 /* Style for the game canvas container */
 #game-container {
     width: 100%;
-    /* Adjust height to make space for bottom ad banner */
-    height: calc(100vh - 70px); /* 70px for the bottom in-game ad */
-    position: absolute;
-    top: 0;
-    left: 0;
+    max-width: 375px; /* Limit width on larger screens */
+    height: 100vh; /* Make game canvas fill full viewport height */
+    /* Remove absolute positioning, as flexbox on body will center it */
+    /* position: absolute; */
+    /* top: 0; */
+    /* left: 0; */
     z-index: 1; /* Below UI elements but above background */
     background-color: #000; /* Default background for canvas area */
+    display: block; /* Ensures it behaves as a block element within flex */
 }
 
 canvas {
     display: block; /* Remove extra space below canvas */
     touch-action: none; /* Prevent browser touch actions like scrolling */
+    /* Ensure canvas takes up 100% of its parent container's width/height if needed */
+    width: 100%; 
+    height: 100%;
 }
 
 /* UI Screens Styling */
 .ui-screen {
-    position: absolute;
+    position: absolute; /* Keep absolute for layering over gameContainer */
     top: 0;
     left: 0;
     width: 100%;
@@ -44,12 +52,12 @@ canvas {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease-in-out;
-    padding: 0 20px; /* Horizontal padding */
+    padding: 20px; /* General padding */
     box-sizing: border-box; /* Include padding in element's total width and height */
     text-align: center;
-    /* Adjust top/bottom padding to make space for banners on Home/Profile */
-    padding-top: 70px; /* Space for top banner */
-    padding-bottom: 70px; /* Space for bottom banner */
+    /* On wider screens, these will also be centered by the body's flexbox */
+    max-width: 375px; /* Limit UI screen width */
+    margin: auto; /* For centering within absolute context, combined with flex */
 }
 
 .ui-screen.active {
@@ -63,7 +71,7 @@ h1, h2 {
     font-size: 2.5em; /* Large heading */
 }
 
-button {
+.game-button { /* General styling for custom buttons */
     background-color: #4CAF50; /* Green */
     border: none;
     color: white;
@@ -80,9 +88,16 @@ button {
     max-width: 300px;
 }
 
-button:hover {
+.game-button:hover {
     background-color: #45a049;
 }
+
+.game-button.large-button { /* Specific styling for larger reward buttons */
+    padding: 20px 35px; /* Larger padding */
+    font-size: 1.4em; /* Larger text */
+    margin: 15px 0; /* More margin */
+}
+
 
 /* Profile Screen Specifics */
 .profile-details {
@@ -137,51 +152,6 @@ button:hover {
     border-radius: 5px;
     font-size: 0.95em;
     text-align: left;
-}
-
-/* Ad Container Styling */
-.ad-container {
-    position: absolute; /* Default positioning for banners */
-    width: 100%;
-    height: auto; /* Let AdSense determine height for responsive, or fixed for banners */
-    background-color: rgba(0, 0, 0, 0.8);
-    display: flex; /* For centering ad content */
-    justify-content: center;
-    align-items: center;
-    z-index: 15; /* Above UI screens, below main UI content like buttons/text */
-    color: white;
-    padding: 5px;
-    box-sizing: border-box;
-    display: none; /* Hidden by default, shown by JS showScreen() */
-    overflow: hidden; /* Prevent ad content from spilling out */
-}
-
-/* Specific positioning for top banners */
-.ad-banner-top {
-    top: 0;
-    height: 70px; /* Consistent height for all top/bottom banners */
-}
-
-/* Specific positioning for bottom banners */
-.ad-banner-bottom {
-    bottom: 0;
-    height: 70px; /* Consistent height for all top/bottom banners */
-    z-index: 5; /* In-game ad needs to be below UI screens but above game */
-}
-
-/* Specific styling for the large game over display ad */
-.ad-display-middle {
-    position: relative; /* Relative to its parent div (game-over-screen) */
-    width: 90%;
-    max-width: 320px; /* Common mobile ad width */
-    height: auto;
-    min-height: 250px; /* Minimum height for responsive */
-    background-color: #333; /* Darker background */
-    z-index: 12; /* Above game, below game over screen content */
-    border-radius: 10px;
-    padding: 10px;
-    margin-top: 20px; /* Space above/below for clarity */
-    margin-bottom: 20px;
 }
 
 /* Specific elements for XP and Level up messages */
