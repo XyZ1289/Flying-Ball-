@@ -139,7 +139,7 @@ if (rewardButton) { // Check if the button exists
     rewardButton.addEventListener('click', () => {
         window.open(MONETAG_DIRECT_LINK, '_blank'); // Open ad in new tab
         
-        // Give random XP on click for "Get Random XP!" button (1-20 at lower levels)
+        // Give random XP on click for "Get Random XP!" button
         let randomXP = Phaser.Math.Between(1, 20);
         // Increase with a very little multiplier at increasing ranks (adjust multiplier as needed)
         const rankMultiplier = 1 + (playerData.currentLevel / 200); // Small multiplier, e.g., 1.05 at level 10, 1.25 at level 50
@@ -296,11 +296,11 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     while (playerData.currentLevel < 100 && playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) { // Limit auto-level up check if beyond Level 100
         playerData.currentLevel++;
         levelUpOccurred = true;
-        const rankForNewLevel = getCurrentRank(playerData.currentLevel);
-        if (!playerData.achievedRanks[rankForNewLevel]) {
-            playerData.achievedRanks[rankForNewLevel] = true; 
-            newRankAchieved = rankForNewLevel;
-        }
+            const rankForNewLevel = getCurrentRank(playerData.currentLevel);
+            if (!playerData.achievedRanks[rankForNewLevel]) {
+                playerData.achievedRanks[rankForNewLevel] = true; 
+                newRankAchieved = rankForNewLevel;
+            }
     }
     // If currentLevel is >=100, XP still accumulates but display will show ∞ for XP needed.
 
@@ -473,22 +473,17 @@ function create() {
     graphics.fillStyle(0xF0F0F0, 0.7); // Light gray moon, 70% opacity
     graphics.fillCircle(gameConfig.width - 50, 50, 20); // Top right corner
 
-    // --- Player Ball (Sprite with Graphics Texture) ---
-    // Create a graphics object to draw the ball texture
-    let ballGraphics = this.add.graphics({ fillStyle: { color: 0x00BFFF } }); // Vibrant blue color
-    ballGraphics.fillCircle(25, 25, 25); // Draw a circle with radius 25 centered on its 50x50 texture
-    ballGraphics.generateTexture('playerBallTexture', 50, 50); // Generate a texture from graphics (50x50 size for 25 radius circle)
-    ballGraphics.destroy(); // Destroy the graphics object as we only need its texture
-
-    playerBall = this.physics.add.sprite(gameConfig.width / 2, gameConfig.height / 2, 'playerBallTexture');
-    playerBall.setCircle(25); // Set physics body as a circle with radius 25
-    playerBall.setCollideWorldBounds(true);
-    playerBall.setGravityY(700); // Increased gravity for classic Flappy feel
+    // --- Player Ball (Phaser Arc Game Object with Physics) ---
+    playerBall = this.add.circle(gameConfig.width / 2, gameConfig.height / 2, 25, 0x00BFFF); // Draw a circle directly as GameObject
+    this.physics.add.existing(playerBall); // Add physics to this GameObject
+    playerBall.body.setCircle(25); // Set physics body as a circle (matches circle radius)
+    playerBall.body.setCollideWorldBounds(true);
+    playerBall.body.setGravityY(700); // Increased gravity for classic Flappy feel
 
     // Input handling
     this.input.on('pointerdown', () => {
         if (!isGameOver) {
-            playerBall.setVelocityY(-350); // Make it jump
+            playerBall.body.setVelocityY(-350); // Make it jump
         }
     });
 
@@ -523,7 +518,7 @@ function update() {
 
     // Check if pipes have passed the player and award score/XP
     pipes.children.each(function(pipe) {
-        // Ensure it's a pipe sprite, not text or other objects
+        // Ensure it's a pipe rectangle, not text or other objects
         if (pipe.getData('isTopPipe') && pipe.x < playerBall.x && !pipe.getData('scored')) {
             pipesPassedInCurrentRun++;
             scoreText.setText('Score: ' + pipesPassedInCurrentRun);
@@ -596,7 +591,7 @@ function addPipeRow() {
     if (topPipeHeight < defaultMinPipeSectionHeight) topPipeHeight = defaultMinPipeSectionHeight;
     if (bottomPipeHeight < defaultMinPipeSectionHeight) bottomPipeHeight = defaultMinPipeSectionHeight;
 
-    // --- Pipe Graphics (as Sprites) ---
+    // --- Pipe Graphics (as Rectangles) ---
     const pipeWidth = 50;
     const pipeX = gameConfig.width + 50; // Start off-screen
 
@@ -636,55 +631,37 @@ function addPipeRow() {
         textColor = 0x000000;
     }
 
-    // Top Pipe Sprite
-    const topPipeSprite = this.physics.add.sprite(pipeX, topPipeHeight / 2);
-    topPipeSprite.body.setAllowGravity(false);
-    topPipeSprite.body.setImmovable(true);
-    topPipeSprite.body.setVelocityX(pipeHorizontalSpeed);
-    topPipeSprite.setData('scored', false);
-    topPipeSprite.setData('isTopPipe', true);
-    topPipeSprite.setDisplaySize(pipeWidth, pipeHeight); // Set visible size
+    // Top Pipe (Phaser Rectangle Game Object with Physics)
+    const topPipe = this.add.rectangle(pipeX, topPipeHeight / 2, pipeWidth, topPipeHeight, pipeColor);
+    this.physics.add.existing(topPipe, true); // Add physics, static body
+    topPipe.body.setSize(pipeWidth, topPipeHeight); // Set physics body size
+    topPipe.body.setImmovable(true);
+    topPipe.body.setVelocityX(pipeHorizontalSpeed);
+    topPipe.setData('scored', false);
+    topPipe.setData('isTopPipe', true);
 
-    // Draw the graphics onto the sprite's texture
-    let topPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
-    topPipeGraphics.fillRect(-pipeWidth / 2, -topPipeHeight / 2, pipeWidth, pipeHeight); // Draw from center
-    topPipeGraphics.generateTexture('pipeTextureTop' + currentPipeScore, pipeWidth, pipeHeight); // Unique texture name
-    topPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
-    topPipeSprite.setTexture('pipeTextureTop' + currentPipeScore);
-    topPipeSprite.setTint(pipeColor); // Apply color tint to sprite
+    // Bottom Pipe (Phaser Rectangle Game Object with Physics)
+    const bottomPipe = this.add.rectangle(pipeX, gameConfig.height - (bottomPipeHeight / 2), pipeWidth, bottomPipeHeight, pipeColor);
+    this.physics.add.existing(bottomPipe, true); // Add physics, static body
+    bottomPipe.body.setSize(pipeWidth, bottomPipeHeight); // Set physics body size
+    bottomPipe.body.setImmovable(true);
+    bottomPipe.body.setVelocityX(pipeHorizontalSpeed);
+    bottomPipe.setData('scored', false);
+    bottomPipe.setData('isTopPipe', false);
 
-
-    // Bottom Pipe Sprite
-    const bottomPipeSprite = this.physics.add.sprite(pipeX, gameConfig.height - (bottomPipeHeight / 2));
-    bottomPipeSprite.body.setAllowGravity(false);
-    bottomPipeSprite.body.setImmovable(true);
-    bottomPipeSprite.body.setVelocityX(pipeHorizontalSpeed);
-    bottomPipeSprite.setData('scored', false);
-    bottomPipeSprite.setData('isTopPipe', false);
-    bottomPipeSprite.setDisplaySize(pipeWidth, bottomPipeHeight); // Set visible size
-
-    // Draw the graphics onto the sprite's texture
-    let bottomPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
-    bottomPipeGraphics.fillRect(-pipeWidth / 2, -bottomPipeHeight / 2, pipeWidth, pipeHeight); // Draw from center
-    bottomPipeGraphics.generateTexture('pipeTextureBottom' + currentPipeScore, pipeWidth, pipeHeight); // Unique texture name
-    bottomPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
-    bottomPipeSprite.setTexture('pipeTextureBottom' + currentPipeScore);
-    bottomPipeSprite.setTint(pipeColor); // Apply color tint to sprite
-
-
-    // Add sprites to the pipes group
-    pipes.add(topPipeSprite);
-    pipes.add(bottomPipeSprite);
+    // Add pipes to the pipes group
+    pipes.add(topPipe);
+    pipes.add(bottomPipe);
 
 
     // Add text to milestone pipes
     if (displayNumber !== '') {
-        const pipeTextTop = this.add.text(topPipeSprite.x, topPipeSprite.y, displayNumber, {
+        const pipeTextTop = this.add.text(topPipe.x, topPipe.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(11);
-        const pipeTextBottom = this.add.text(bottomPipeSprite.x, bottomPipeSprite.y, displayNumber, {
+        const pipeTextBottom = this.add.text(bottomPipe.x, bottomPipe.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
@@ -702,8 +679,8 @@ function addPipeRow() {
 
 
 function hitPipe(player, pipe) {
-    // Only trigger game over if the hit object is a pipe sprite, not text or other objects
-    if (isGameOver || !(pipe instanceof Phaser.Physics.Arcade.Sprite)) return; 
+    // Only trigger game over if the hit object is a pipe rectangle, not text or other objects
+    if (isGameOver || !(pipe instanceof Phaser.GameObjects.Rectangle)) return; 
     endGame(pipesPassedInCurrentRun, Math.floor(gameTimer / 1000), pipesPassedInCurrentRun); // Pass score, time, pipes crossed
 }
 
@@ -715,4 +692,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-                                      
+    
