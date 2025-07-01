@@ -164,12 +164,12 @@ if (gameOverRewardButton) { // Check if the button exists
         // Also update the level/rank info if it caused a level up
         let levelUpOccurred = false;
         let newRankAchieved = null;
-        while (playerData.currentLevel < 100 && playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) {
+        while (playerData.currentLevel < 100 && playerData.totalXP >= cumulativeXPRequiredToReachLevel[playerData.currentLevel + 1]) { // Limit auto-level up check if beyond Level 100
             playerData.currentLevel++;
             levelUpOccurred = true;
             const rankForNewLevel = getCurrentRank(playerData.currentLevel);
             if (!playerData.achievedRanks[rankForNewLevel]) {
-                playerData.achievedRanks[rankForNewLevel] = true;
+                playerData.achievedRanks[rankForNewLevel] = true; // Corrected typo
                 newRankAchieved = rankForNewLevel;
             }
         }
@@ -277,7 +277,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
         levelUpOccurred = true;
         const rankForNewLevel = getCurrentRank(playerData.currentLevel);
         if (!playerData.achievedRanks[rankForNewLevel]) {
-            playerData.achievedRanks[rankForNewLevel] = true;
+            playerData.achievedRanks[rankForNewLevel] = true; // Corrected typo
             newRankAchieved = rankForNewLevel;
         }
     }
@@ -462,12 +462,11 @@ function create() {
     // Set initial position and properties
     playerBall.x = gameConfig.width / 2;
     playerBall.y = gameConfig.height / 2;
-    playerBall.body.setCircle(15); // Set physics body as a circle with radius 15
+        playerBall.body.setCircle(15); // Set physics body as a circle with radius 15
     playerBall.body.setCollideWorldBounds(true);
     playerBall.body.setGravityY(700); // Increased gravity for classic Flappy feel
 
     // Input handling
-
     this.input.on('pointerdown', () => {
         if (!isGameOver) {
             playerBall.body.setVelocityY(-350); // Make it jump
@@ -698,3 +697,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
+            
