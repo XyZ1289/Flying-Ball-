@@ -476,7 +476,7 @@ function create() {
     // --- Player Ball (Sprite with Graphics Texture) ---
     // Create a graphics object to draw the ball texture
     let ballGraphics = this.add.graphics({ fillStyle: { color: 0x00BFFF } }); // Vibrant blue color
-    ballGraphics.fillCircle(0, 0, 25); // Draw a circle with radius 25 at its own (0,0)
+    ballGraphics.fillCircle(25, 25, 25); // Draw a circle with radius 25 centered on its 50x50 texture
     ballGraphics.generateTexture('playerBallTexture', 50, 50); // Generate a texture from graphics (50x50 size for 25 radius circle)
     ballGraphics.destroy(); // Destroy the graphics object as we only need its texture
 
@@ -643,12 +643,12 @@ function addPipeRow() {
     topPipeSprite.body.setVelocityX(pipeHorizontalSpeed);
     topPipeSprite.setData('scored', false);
     topPipeSprite.setData('isTopPipe', true);
-    topPipeSprite.setDisplaySize(pipeWidth, topPipeHeight); // Set visible size
+    topPipeSprite.setDisplaySize(pipeWidth, pipeHeight); // Set visible size
 
     // Draw the graphics onto the sprite's texture
     let topPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
     topPipeGraphics.fillRect(-pipeWidth / 2, -topPipeHeight / 2, pipeWidth, pipeHeight); // Draw from center
-    topPipeGraphics.generateTexture('pipeTextureTop' + currentPipeScore, pipeWidth, pipeHeight);
+    topPipeGraphics.generateTexture('pipeTextureTop' + currentPipeScore, pipeWidth, pipeHeight); // Unique texture name
     topPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
     topPipeSprite.setTexture('pipeTextureTop' + currentPipeScore);
     topPipeSprite.setTint(pipeColor); // Apply color tint to sprite
@@ -665,8 +665,8 @@ function addPipeRow() {
 
     // Draw the graphics onto the sprite's texture
     let bottomPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
-    bottomPipeGraphics.fillRect(-pipeWidth / 2, -bottomPipeHeight / 2, pipeWidth, bottomPipeHeight); // Draw from center
-    bottomPipeGraphics.generateTexture('pipeTextureBottom' + currentPipeScore, pipeWidth, pipeHeight);
+    bottomPipeGraphics.fillRect(-pipeWidth / 2, -bottomPipeHeight / 2, pipeWidth, pipeHeight); // Draw from center
+    bottomPipeGraphics.generateTexture('pipeTextureBottom' + currentPipeScore, pipeWidth, pipeHeight); // Unique texture name
     bottomPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
     bottomPipeSprite.setTexture('pipeTextureBottom' + currentPipeScore);
     bottomPipeSprite.setTint(pipeColor); // Apply color tint to sprite
@@ -715,4 +715,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
-                                                 
+                                      
