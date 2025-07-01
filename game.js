@@ -43,22 +43,23 @@ let playerData = {
 };
 
 // --- XP and Leveling Configuration ---
-const XP_GROWTH_FACTOR = 1.206;
+const XP_GROWTH_FACTOR = 1.15; // Adjusted for gentler curve
 const BASE_XP_REQUIRED = 10; // Base XP from L1 to L2
 
 // Pre-calculate cumulative XP needed to reach each level (for XP bar display and level up checks)
 const cumulativeXPRequiredToReachLevel = {};
 function calculateCumulativeXP() {
     cumulativeXPRequiredToReachLevel[1] = 0; // XP needed to REACH Level 1 is 0
-    for (let level = 1; level <= 200; level++) { // Calculate up to level 200 for now, can extend if needed
+    for (let level = 1; level <= 100; level++) { // Calculate up to level 100, no need for more for thresholds
         const xpNeededForNext = Math.round(BASE_XP_REQUIRED * Math.pow(XP_GROWTH_FACTOR, level));
-        cumulativeXPRequiredToReachLevel[level + 1] = cumulativeXPRequiredToReachLevel[level] + xpNeededForNext;
+        cumulativeXPRequiredToReachLevel[level + 1] = Math.round(cumulativeXPRequiredToReachLevel[level] + xpNeededForNext); // Ensure cumulative is rounded too
     }
 }
 calculateCumulativeXP(); // Call this once on script load
 
 function getXPRequiredForNextLevel(currentLevel) {
     if (currentLevel >= 100) return Infinity; // For display past Level 100
+    // XP for next level is always calculated from current level
     return Math.round(BASE_XP_REQUIRED * Math.pow(XP_GROWTH_FACTOR, currentLevel));
 }
 
@@ -137,10 +138,21 @@ gameOverHomeButton.addEventListener('click', () => {
 if (rewardButton) { // Check if the button exists
     rewardButton.addEventListener('click', () => {
         window.open(MONETAG_DIRECT_LINK, '_blank'); // Open ad in new tab
-        // Give random XP on click for "Get Random XP!" button
-        const randomXP = Phaser.Math.Between(1, 50);
+        
+        // Give random XP on click for "Get Random XP!" button (1-20 at lower levels)
+        let randomXP = Phaser.Math.Between(1, 20);
+        // Increase with a very little multiplier at increasing ranks (adjust multiplier as needed)
+        const rankMultiplier = 1 + (playerData.currentLevel / 200); // Small multiplier, e.g., 1.05 at level 10, 1.25 at level 50
+        randomXP = Math.round(randomXP * rankMultiplier);
+
         playerData.totalXP += randomXP;
+        playerData.totalXP = Math.round(playerData.totalXP); // Round total XP to nearest whole number
         savePlayerData();
+        
+        // Update profile UI if they are on profile screen or going there next
+        if (profileScreen.classList.contains('active')) {
+            updateProfileUI();
+        }
         // Optionally, show a small temporary message on screen
         // this.add.text(gameConfig.width / 2, gameConfig.height / 2, `+${randomXP} XP!`, { fontSize: '32px', fill: '#0f0' }).setOrigin(0.5);
     });
@@ -162,6 +174,7 @@ if (gameOverRewardButton) { // Check if the button exists
         const bonusXP = baseXPThisGame; // This makes it 2X total XP for the game if claimed
 
         playerData.totalXP += bonusXP; // Add the bonus XP
+        playerData.totalXP = Math.round(playerData.totalXP); // Round total XP to nearest whole number
         savePlayerData();
         
         // Update the Game Over screen dynamically to show new XP
@@ -175,7 +188,7 @@ if (gameOverRewardButton) { // Check if the button exists
             levelUpOccurred = true;
             const rankForNewLevel = getCurrentRank(playerData.currentLevel);
             if (!playerData.achievedRanks[rankForNewLevel]) {
-                playerData.achievedRanks[rankForNewLevel] = true; // Corrected typo
+                playerData.achievedRanks[rankForNewLevel] = true; 
                 newRankAchieved = rankForNewLevel;
             }
         }
@@ -201,11 +214,11 @@ function loadPlayerData() {
         playerData = JSON.parse(savedData);
         // Ensure new properties are added if loading old data from previous versions
         playerData.achievedRanks = playerData.achievedRanks || { 'Bronze': true };
-        playerData.totalXP = playerData.totalXP || 0;
-        playerData.currentLevel = playerData.currentLevel || 1;
-        playerData.totalPlaytimeSeconds = playerData.totalPlaytimeSeconds || 0;
-        playerData.totalPipesCrossed = playerData.totalPipesCrossed || 0;
-        playerData.highestPipesInRun = playerData.highestPipesInRun || 0;
+        playerData.totalXP = Number(playerData.totalXP) || 0; // Ensure it's a number
+        playerData.currentLevel = Number(playerData.currentLevel) || 1; // Ensure it's a number
+        playerData.totalPlaytimeSeconds = Number(playerData.totalPlaytimeSeconds) || 0; // Ensure it's a number
+        playerData.totalPipesCrossed = Number(playerData.totalPipesCrossed) || 0; // Ensure it's a number
+        playerData.highestPipesInRun = Number(playerData.highestPipesInRun) || 0; // Ensure it's a number
     }
 }
 
@@ -236,6 +249,8 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
     playerData.totalXP += xpFromPlaytime;
     playerData.totalXP += xpFromRegularPipes; // Add XP from regular pipes
 
+    playerData.totalXP = Math.round(playerData.totalXP); // Round total XP to nearest whole number
+
     // Update total stats
     playerData.totalPlaytimeSeconds += gameRunTimeSeconds;
     playerData.totalPipesCrossed += pipesCrossed;
@@ -261,7 +276,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
             else if (key === '100') pipeXPAwardedThisRunForDisplay += 200;
             else if (key === '200') pipeXPAwardedThisRunForDisplay += 500;
             else if (key === '350') pipeXPAwardedThisRunForDisplay += 1000;
-            else if (key === '500') xpXPAwardedThisRunForDisplay += 1500;
+            else if (key === '500') pipeXPAwardedThisRunForDisplay += 1500;
         }
     }
 
@@ -283,7 +298,7 @@ function endGame(currentScore, gameRunTimeSeconds, pipesCrossed) {
         levelUpOccurred = true;
         const rankForNewLevel = getCurrentRank(playerData.currentLevel);
         if (!playerData.achievedRanks[rankForNewLevel]) {
-            playerData.achievedRanks[rankForNewLevel] = true; // Corrected typo
+            playerData.achievedRanks[rankForNewLevel] = true; 
             newRankAchieved = rankForNewLevel;
         }
     }
@@ -458,16 +473,22 @@ function create() {
     graphics.fillStyle(0xF0F0F0, 0.7); // Light gray moon, 70% opacity
     graphics.fillCircle(gameConfig.width - 50, 50, 20); // Top right corner
 
-    // --- Player Ball (Drawn with Graphics) ---
-    // Create a graphics object specifically for the player ball
-        playerBall.body.setCircle(15); // Set physics body as a circle with radius 15
-    playerBall.body.setCollideWorldBounds(true);
-    playerBall.body.setGravityY(700); // Increased gravity for classic Flappy feel
+    // --- Player Ball (Sprite with Graphics Texture) ---
+    // Create a graphics object to draw the ball texture
+    let ballGraphics = this.add.graphics({ fillStyle: { color: 0x00BFFF } }); // Vibrant blue color
+    ballGraphics.fillCircle(0, 0, 25); // Draw a circle with radius 25 at its own (0,0)
+    ballGraphics.generateTexture('playerBallTexture', 50, 50); // Generate a texture from graphics (50x50 size for 25 radius circle)
+    ballGraphics.destroy(); // Destroy the graphics object as we only need its texture
+
+    playerBall = this.physics.add.sprite(gameConfig.width / 2, gameConfig.height / 2, 'playerBallTexture');
+    playerBall.setCircle(25); // Set physics body as a circle with radius 25
+    playerBall.setCollideWorldBounds(true);
+    playerBall.setGravityY(700); // Increased gravity for classic Flappy feel
 
     // Input handling
     this.input.on('pointerdown', () => {
         if (!isGameOver) {
-            playerBall.body.setVelocityY(-350); // Make it jump
+            playerBall.setVelocityY(-350); // Make it jump
         }
     });
 
@@ -502,32 +523,30 @@ function update() {
 
     // Check if pipes have passed the player and award score/XP
     pipes.children.each(function(pipe) {
-        // Only trigger score/XP if it's a graphical pipe, not the text
-        if (pipe.type === 'Graphics' && pipe.x < playerBall.x && !pipe.getData('scored')) {
-            if (pipe.getData('isTopPipe')) { // Only check for top pipe of the pair
-                pipesPassedInCurrentRun++;
-                scoreText.setText('Score: ' + pipesPassedInCurrentRun);
-                pipe.setData('scored', true); // Mark as scored
+        // Ensure it's a pipe sprite, not text or other objects
+        if (pipe.getData('isTopPipe') && pipe.x < playerBall.x && !pipe.getData('scored')) {
+            pipesPassedInCurrentRun++;
+            scoreText.setText('Score: ' + pipesPassedInCurrentRun);
+            pipe.setData('scored', true); // Mark as scored
 
-                // Award XP for milestone pipes immediately
-                const xpDetails = awardPipeXP(pipesPassedInCurrentRun);
-                if (xpDetails.xp > 0) {
-                    // Display a temporary text indicating XP gain
-                    const xpGainText = this.add.text(playerBall.x, playerBall.y - 50, xpDetails.message, {
-                        fontSize: '24px',
-                        fill: '#0f0', // Green color for XP
-                        stroke: '#000',
-                        strokeThickness: 4
-                    }).setOrigin(0.5);
-                    this.tweens.add({
-                        targets: xpGainText,
-                        y: xpGainText.y - 70,
-                        alpha: 0,
-                        duration: 1500,
-                        ease: 'Power1',
-                        onComplete: () => xpGainText.destroy()
-                    });
-                }
+            // Award XP for milestone pipes immediately
+            const xpDetails = awardPipeXP(pipesPassedInCurrentRun);
+            if (xpDetails.xp > 0) {
+                // Display a temporary text indicating XP gain
+                const xpGainText = this.add.text(playerBall.x, playerBall.y - 50, xpDetails.message, {
+                    fontSize: '24px',
+                    fill: '#0f0', // Green color for XP
+                    stroke: '#000',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+                this.tweens.add({
+                    targets: xpGainText,
+                    y: xpGainText.y - 70,
+                    alpha: 0,
+                    duration: 1500,
+                    ease: 'Power1',
+                    onComplete: () => xpGainText.destroy()
+                });
             }
         }
         // Remove pipes (and their associated text) that are off-screen to the left
@@ -577,94 +596,95 @@ function addPipeRow() {
     if (topPipeHeight < defaultMinPipeSectionHeight) topPipeHeight = defaultMinPipeSectionHeight;
     if (bottomPipeHeight < defaultMinPipeSectionHeight) bottomPipeHeight = defaultMinPipeSectionHeight;
 
-    // --- Pipe Graphics ---
+    // --- Pipe Graphics (as Sprites) ---
     const pipeWidth = 50;
     const pipeX = gameConfig.width + 50; // Start off-screen
 
-    // Top Pipe
-    const topPipeGraphic = this.add.graphics({ fillStyle: { color: 0x00FF00 } }); // Default glowing green
-    topPipeGraphic.fillRect(0, 0, pipeWidth, topPipeHeight); // Draw filled rectangle
-    this.physics.add.existing(topPipeGraphic, true); // Add physics, static body
-    topPipeGraphic.body.setSize(pipeWidth, topPipeHeight); // Set physics body size
-    topPipeGraphic.x = pipeX;
-    topPipeGraphic.y = topPipeHeight / 2; // Position center of graphic for visual rendering
-    topPipeGraphic.body.setImmovable(true);
-    topPipeGraphic.body.setVelocityX(pipeHorizontalSpeed);
-    topPipeGraphic.setData('scored', false);
-    topPipeGraphic.setData('isTopPipe', true);
-
-    // Bottom Pipe
-    const bottomPipeGraphic = this.add.graphics({ fillStyle: { color: 0x00FF00 } }); // Default glowing green
-    bottomPipeGraphic.fillRect(0, 0, pipeWidth, bottomPipeHeight); // Draw filled rectangle
-    this.physics.add.existing(bottomPipeGraphic, true); // Add physics, static body
-    bottomPipeGraphic.body.setSize(pipeWidth, bottomPipeHeight); // Set physics body size
-    bottomPipeGraphic.x = pipeX;
-    bottomPipeGraphic.y = gameConfig.height - (bottomPipeHeight / 2); // Position center of graphic for visual rendering
-    bottomPipeGraphic.body.setImmovable(true);
-    bottomPipeGraphic.body.setVelocityX(pipeHorizontalSpeed);
-    bottomPipeGraphic.setData('scored', false);
-    bottomPipeGraphic.setData('isTopPipe', false);
-
-    // Add graphics objects to the pipes group
-    pipes.add(topPipeGraphic);
-    pipes.add(bottomPipeGraphic);
-
-
-    // Apply glowing effect and check for milestone pipes
-    const currentPipeCount = pipesPassedInCurrentRun + 1; // This will be the score if this pipe is passed
-
+    // Determine pipe color based on milestone
     let pipeColor = 0x00FF00; // Default glowing green for normal pipes
     let textColor = 0x000000; // Black text for numbers on pipes
     let displayNumber = '';
 
-    if (currentPipeCount === 10) {
+    const currentPipeScore = pipesPassedInCurrentRun + 1; // Score if this pipe is passed
+    if (currentPipeScore === 10) {
         pipeColor = 0xFF0000; // Red for 10th
         displayNumber = '10';
         textColor = 0xFFFFFF;
-    } else if (currentPipeCount === 20) {
+    } else if (currentPipeScore === 20) {
         pipeColor = 0xFF00FF; // Magenta for 20th
         displayNumber = '20';
         textColor = 0xFFFFFF;
-    } else if (currentPipeCount === 50) {
+    } else if (currentPipeScore === 50) {
         pipeColor = 0xFFFF00; // Yellow for 50th
         displayNumber = '50';
         textColor = 0x000000;
-    } else if (currentPipeCount === 100) {
+    } else if (currentPipeScore === 100) {
         pipeColor = 0xFF8800; // Orange for 100th
         displayNumber = '100';
         textColor = 0xFFFFFF;
-    } else if (currentPipeCount === 200) {
+    } else if (currentPipeScore === 200) {
         pipeColor = 0x00FFFF; // Cyan for 200th
         displayNumber = '200';
         textColor = 0x000000;
-    } else if (currentPipeCount === 350) { // New 350th milestone
+    } else if (currentPipeScore === 350) { // New 350th milestone
         pipeColor = 0x8A2BE2; // Blue Violet for 350th
         displayNumber = '350';
         textColor = 0xFFFFFF;
-    } else if (currentPipeCount === 500) {
+    } else if (currentPipeScore === 500) {
         pipeColor = 0xFFD700; // Gold for 500th
         displayNumber = '500';
         textColor = 0x000000;
     }
 
-    // Redraw the graphics with the correct color
-    topPipeGraphic.clear();
-    topPipeGraphic.fillStyle(pipeColor);
-    topPipeGraphic.fillRect(0, 0, pipeWidth, pipeHeight); 
+    // Top Pipe Sprite
+    const topPipeSprite = this.physics.add.sprite(pipeX, topPipeHeight / 2);
+    topPipeSprite.body.setAllowGravity(false);
+    topPipeSprite.body.setImmovable(true);
+    topPipeSprite.body.setVelocityX(pipeHorizontalSpeed);
+    topPipeSprite.setData('scored', false);
+    topPipeSprite.setData('isTopPipe', true);
+    topPipeSprite.setDisplaySize(pipeWidth, topPipeHeight); // Set visible size
 
-    bottomPipeGraphic.clear();
-    bottomPipeGraphic.fillStyle(pipeColor);
-    bottomPipeGraphic.fillRect(0, 0, pipeWidth, bottomPipeHeight); 
+    // Draw the graphics onto the sprite's texture
+    let topPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
+    topPipeGraphics.fillRect(-pipeWidth / 2, -topPipeHeight / 2, pipeWidth, pipeHeight); // Draw from center
+    topPipeGraphics.generateTexture('pipeTextureTop' + currentPipeScore, pipeWidth, pipeHeight);
+    topPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
+    topPipeSprite.setTexture('pipeTextureTop' + currentPipeScore);
+    topPipeSprite.setTint(pipeColor); // Apply color tint to sprite
+
+
+    // Bottom Pipe Sprite
+    const bottomPipeSprite = this.physics.add.sprite(pipeX, gameConfig.height - (bottomPipeHeight / 2));
+    bottomPipeSprite.body.setAllowGravity(false);
+    bottomPipeSprite.body.setImmovable(true);
+    bottomPipeSprite.body.setVelocityX(pipeHorizontalSpeed);
+    bottomPipeSprite.setData('scored', false);
+    bottomPipeSprite.setData('isTopPipe', false);
+    bottomPipeSprite.setDisplaySize(pipeWidth, bottomPipeHeight); // Set visible size
+
+    // Draw the graphics onto the sprite's texture
+    let bottomPipeGraphics = this.add.graphics({ fillStyle: { color: pipeColor } });
+    bottomPipeGraphics.fillRect(-pipeWidth / 2, -bottomPipeHeight / 2, pipeWidth, bottomPipeHeight); // Draw from center
+    bottomPipeGraphics.generateTexture('pipeTextureBottom' + currentPipeScore, pipeWidth, pipeHeight);
+    bottomPipeGraphics.destroy(); // Destroy graphics object as we only need its texture
+    bottomPipeSprite.setTexture('pipeTextureBottom' + currentPipeScore);
+    bottomPipeSprite.setTint(pipeColor); // Apply color tint to sprite
+
+
+    // Add sprites to the pipes group
+    pipes.add(topPipeSprite);
+    pipes.add(bottomPipeSprite);
 
 
     // Add text to milestone pipes
     if (displayNumber !== '') {
-        const pipeTextTop = this.add.text(topPipeGraphic.x, topPipeGraphic.y, displayNumber, {
+        const pipeTextTop = this.add.text(topPipeSprite.x, topPipeSprite.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
         }).setOrigin(0.5).setDepth(11);
-        const pipeTextBottom = this.add.text(bottomPipeGraphic.x, bottomPipeGraphic.y, displayNumber, {
+        const pipeTextBottom = this.add.text(bottomPipeSprite.x, bottomPipeSprite.y, displayNumber, {
             fontSize: '20px',
             fill: `#${textColor.toString(16)}`,
             fontStyle: 'bold'
@@ -682,8 +702,8 @@ function addPipeRow() {
 
 
 function hitPipe(player, pipe) {
-    // Only trigger game over if the hit object is a graphics pipe, not text
-    if (isGameOver || pipe.type !== 'Graphics') return; 
+    // Only trigger game over if the hit object is a pipe sprite, not text or other objects
+    if (isGameOver || !(pipe instanceof Phaser.Physics.Arcade.Sprite)) return; 
     endGame(pipesPassedInCurrentRun, Math.floor(gameTimer / 1000), pipesPassedInCurrentRun); // Pass score, time, pipes crossed
 }
 
@@ -695,3 +715,4 @@ function hitGround(player, ground) {
 // --- Initial Setup ---
 loadPlayerData(); // Load any existing data
 showScreen(homeScreen); // Show the home screen when the page loads
+                                                 
