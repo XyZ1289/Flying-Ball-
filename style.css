@@ -4,6 +4,7 @@ body {
     font-family: Arial, sans-serif;
     color: #eee; /* Light text for dark background */
     background-color: #000; /* Black background */
+    
     /* Mobile-first: No centering for PC, fixed position */
     position: relative;
     min-height: 100vh;
